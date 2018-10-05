@@ -1,0 +1,17 @@
+elpa/
+auto-save-list/
+backups/
+eshell/
+places
+
+*.cache
+*~
+
+tutorial/
+
+recentf
+
+.emacs.desktop*
+.projectile
+ac-comphist.dat
+

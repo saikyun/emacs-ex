@@ -1,0 +1,1 @@
+("~/.emacs.d/" "~/devops/projekt-haxxa-vb/" "~/notes/" "~/devops/pts-differ/")

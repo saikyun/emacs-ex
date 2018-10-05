@@ -1,0 +1,231 @@
+* startup.org
+This is my file for configurating emacs. There are many like it, but this one is mine.
+** Saker att fixa
+*** DONE Konfigurera paredit
+    :LOGBOOK:
+    CLOCK: [2018-09-20 tor 11:28]--[2018-09-20 tor 11:53] =>  0:25
+    :END:
+**** DONE Fixa hotkeys
+*** DONE Gruppera koden
+*** DONE Fixa auto indent mode
+* Koden
+** Add the paths to melpa.
+#+begin_src emacs-lisp
+(let* ((no-ssl (and (memq system-type '(windows-nt ms-dos))
+                    (not (gnutls-available-p))))
+       (proto (if no-ssl "http" "https")))
+  ;; Comment/uncomment these two lines to enable/disable MELPA and MELPA Stable as desired
+  (add-to-list 'package-archives (cons "melpa" (concat proto "://melpa.org/packages/")) t)
+  ;;(add-to-list 'package-archives (cons "melpa-stable" (concat proto "://stable.melpa.org/packages/")) t)
+  (when (< emacs-major-version 24)
+    ;; For important compatibility libraries like cl-lib
+    (add-to-list 'package-archives '("gnu" . (concat proto "://elpa.gnu.org/packages/")))))
+#+end_src
+
+#+RESULTS:
+
+** Systemgrejer (t.ex. server-start och binda om C-x/C-u
+#+BEGIN_SRC emacs-lisp
+  (server-start)
+
+  (desktop-save-mode 1)
+
+  (setenv "PATH" (concat (getenv "PATH") ";C:\\Program Files\\Git\\mingw64\\bin"))
+  (setenv "PATH" (concat (getenv "PATH") ";C:\\Users\\u045862\\AppData\\Roaming"))
+  (add-to-list 'exec-path "C:/Users/u045862/AppData/Roaming")
+
+  (defalias 'yes-or-no-p 'y-or-n-p)
+#+END_SRC
+
+#+RESULTS:
+: yes-or-no-p
+
+** org-mode
+#+BEGIN_SRC emacs-lisp
+  (setq org-todo-keywords '((sequence "TODO" "WAITING" "|" "DONE")))
+
+  (add-hook 'org-mode-hook '(lambda ()
+                              (add-hook 'after-save-hook 'org-babel-tangle nil t)))
+#+END_SRC
+
+#+RESULTS:
+| (lambda nil (print hej) (add-hook (quote after-save-hook) (quote org-babel-tangle) nil t)) | auto-indent-turn-on-org-indent | (lambda nil (add-hook (quote after-save-hook) (quote org-babel-tangle) nil t)) | #[0 \300\301\302\303\304$\207 [add-hook change-major-mode-hook org-show-block-all append local] 5] | #[0 \300\301\302\303\304$\207 [add-hook change-major-mode-hook org-babel-show-result-all append local] 5] | org-babel-result-hide-spec | org-babel-hide-all-hashes |
+
+** projectile-mode
+#+BEGIN_SRC emacs-lisp
+  (require 'projectile)
+  (projectile-global-mode)
+(define-key projectile-mode-map (kbd "s-p") 'projectile-command-map)
+(define-key projectile-mode-map (kbd "C-c p") 'projectile-command-map)
+#+END_SRC
+
+#+RESULTS:
+: projectile-command-map
+
+** helm and helm-projectile.
+#+begin_src emacs-lisp
+  (require 'helm-config)
+  (helm-mode 1)
+
+  (require 'helm-projectile)
+  (helm-projectile-on)
+
+  (setq projectile-switch-project-action #'helm-projectile)
+#+end_src
+
+#+RESULTS:
+: helm-projectile
+
+** clojure and cider
+*** Clojure
+#+BEGIN_SRC emacs-lisp
+  (add-to-list 'auto-mode-alist '("\\.cljs\\'" . clojure-mode))
+  (add-to-list 'auto-mode-alist '("\\.clj\\'" . clojure-mode))
+  (add-hook 'clojure-mode 'paredit-mode)
+#+END_SRC
+
+#+RESULTS:
+| paredit-mode |
+
+*** Cider
+#+BEGIN_SRC emacs-lisp
+  (add-hook 'cider-repl-mode-hook 'enable-paredit-mode)
+  (add-hook 'clojure-mode-hook 'enable-paredit-mode)
+
+  (setq cider-repl-use-pretty-printing t)
+(require 'cider)
+
+  (define-key cider-repl-mode-map (kbd "RET") #'cider-repl-newline-and-indent)
+  (define-key cider-repl-mode-map (kbd "C-<return>") #'cider-repl-return)
+#+END_SRC
+
+#+RESULTS:
+: cider-repl-return
+
+** highlight-symbol
+#+BEGIN_SRC emacs-lisp
+  (require 'highlight-symbol)
+
+  (global-set-key [(control f3)] 'highlight-symbol)
+  (global-set-key [(control shift f3)] 'highlight-symbol-remove-all)
+  (global-set-key [f3] 'highlight-symbol-next)
+  (global-set-key [(shift f3)] 'highlight-symbol-prev)
+  (global-set-key [(meta f3)] 'highlight-symbol-query-replace)
+#+END_SRC
+
+#+RESULTS:
+: highlight-symbol-query-replace
+
+** Add scripts added without package.el.
+#+begin_src emacs-lisp
+  (add-to-list 'load-path "~/.emacs.d/scripts")
+  (let ((default-directory  "~/.emacs.d/scripts/"))
+      (normal-top-level-add-subdirs-to-load-path))
+
+  (require 'better-defaults)
+  (require 'auto-indent-mode)
+
+  (auto-indent-global-mode)
+
+  (global-linum-mode)
+#+end_src
+
+#+RESULTS:
+: t
+
+** Konfiguration för paredit.
+#+BEGIN_SRC emacs-lisp
+  (eval-after-load 'paredit
+    '(progn
+       (define-key paredit-mode-map (kbd "C-<backspace>") 'paredit-backward-kill-word)))
+
+#+END_SRC
+
+#+RESULTS:
+: paredit-backward-kill-word
+
+** Lisp-modes (bl.a. starta paredit-mode)
+#+BEGIN_SRC emacs-lisp
+  (add-hook 'lisp-mode-hook 'enable-paredit-mode)
+  (add-hook 'emacs-lisp-mode-hook 'enable-paredit-mode)
+
+#+END_SRC
+
+#+RESULTS:
+| enable-paredit-mode |
+
+** Utility
+*** Radbrytningar
+#+BEGIN_SRC emacs-lisp
+  (defun end-of-line-newline ()
+    (interactive)
+    (end-of-line)
+    (newline))
+#+END_SRC
+
+#+RESULTS:
+: end-of-line-newline
+*** Buffer-jox
+#+BEGIN_SRC emacs-lisp
+  (defun show-file-name ()
+    "Show the full path file name in the minibuffer."
+    (interactive)
+    (message (buffer-file-name))
+    (kill-new (file-truename buffer-file-name)))
+#+END_SRC
+
+#+RESULTS:
+: show-file-name
+
+** Globala hotkeys
+*** Generella
+#+BEGIN_SRC emacs-lisp
+  (global-set-key (kbd "M-m") 'delete-indentation)
+  (global-set-key (kbd "C-S-z") 'revert-buffer)
+
+  (global-set-key (kbd "C-S-m") 'end-of-line-newline)
+  (global-set-key (kbd "<tab>") 'completion-at-point)
+  (define-key minibuffer-local-map (kbd "<tab>") 'helm-select-action)
+
+  (global-set-key (kbd "C-.") 'avy-goto-word-1)
+  (global-set-key (kbd "C-:") 'avy-goto-line)
+  (global-set-key (kbd "C-M-:") 'avy-copy-line)
+
+  (global-set-key (kbd "C-c b p") 'show-file-name)
+
+#+END_SRC
+
+#+RESULTS:
+: show-file-name
+*** Lisp
+#+BEGIN_SRC emacs-lisp
+  (global-set-key (kbd "C-c C-c") 'eval-defun)
+#+END_SRC
+
+#+RESULTS:
+: eval-defun
+
+*** Helm
+#+BEGIN_SRC emacs-lisp
+  (global-set-key (kbd "M-x") #'helm-M-x)
+  (global-set-key (kbd "C-x r b") #'helm-filtered-bookmarks)
+  (global-set-key (kbd "C-x C-f") #'helm-find-files)
+#+END_SRC
+
+
+#+RESULTS:
+: helm-projectile
+
+*** VB
+#+BEGIN_SRC emacs-lisp
+    (require 'visual-basic-mode)
+
+    (add-to-list 'auto-mode-alist '("\\.vbs\\'" . visual-basic-mode))
+
+;;  (require 'vbasense)
+
+  ;;  (vbasense-config-default)
+#+END_SRC
+
+#+RESULTS:
+: ((\.odc\' . archive-mode) (\.odf\' . archive-mode) (\.odi\' . archive-mode) (\.otp\' . archive-mode) (\.odp\' . archive-mode) (\.otg\' . archive-mode) (\.odg\' . archive-mode) (\.ots\' . archive-mode) (\.ods\' . archive-mode) (\.odm\' . archive-mode) (\.ott\' . archive-mode) (\.odt\' . archive-mode) (\.vbs\' . visual-basic-mode) (\.clj\' . lisp-mode) (\.cljs\' . lisp-mode) (\.gpg\(~\|\.~[0-9]+~\)?\' nil epa-file) (\.elc\' . elisp-byte-code-mode) (\.zst\' nil jka-compr) (\.dz\' nil jka-compr) (\.xz\' nil jka-compr) (\.lzma\' nil jka-compr) (\.lz\' nil jka-compr) (\.g?z\' nil jka-compr) (\.bz2\' nil jka-compr) (\.Z\' nil jka-compr) (\.vr[hi]?\' . vera-mode) (\(?:\.\(?:rbw?\|ru\|rake\|thor\|jbuilder\|rabl\|gemspec\|podspec\)\|/\(?:Gem\|Rake\|Cap\|Thor\|Puppet\|Berks\|Vagrant\|Guard\|Pod\)file\)\' . ruby-mode) (\.re?st\' . rst-mode) (\.py[iw]?\' . python-mode) (\.less\' . less-css-mode) (\.scss\' . scss-mode) (\.awk\' . awk-mode) (\.\(u?lpc\|pike\|pmod\(\.in\)?\)\' . pike-mode) (\.idl\' . idl-mode) (\.java\' . java-mode) (\.m\' . objc-mode) (\.ii\' . c++-mode) (\.i\' . c-mode) (\.lex\' . c-mode) (\.y\(acc\)?\' . c-mode) (\.h\' . c-or-c++-mode) (\.c\' . c-mode) (\.\(CC?\|HH?\)\' . c++-mode) (\.[ch]\(pp\|xx\|\+\+\)\' . c++-mode) (\.\(cc\|hh\)\' . c++-mode) (\.\(bat\|cmd\)\' . bat-mode) (\.[sx]?html?\(\.[a-zA-Z_]+\)?\' . mhtml-mode) (\.svgz?\' . image-mode) (\.svgz?\' . xml-mode) (\.x[bp]m\' . image-mode) (\.x[bp]m\' . c-mode) (\.p[bpgn]m\' . image-mode) (\.tiff?\' . image-mode) (\.gif\' . image-mode) (\.png\' . image-mode) (\.jpe?g\' . image-mode) (\.te?xt\' . text-mode) (\.[tT]e[xX]\' . tex-mode) (\.ins\' . tex-mode) (\.ltx\' . latex-mode) (\.dtx\' . doctex-mode) (\.org\' . org-mode) (\.el\' . emacs-lisp-mode) (Project\.ede\' . emacs-lisp-mode) (\.\(scm\|stk\|ss\|sch\)\' . scheme-mode) (\.l\' . lisp-mode) (\.li?sp\' . lisp-mode) (\.[fF]\' . fortran-mode) (\.for\' . fortran-mode) (\.p\' . pascal-mode) (\.pas\' . pascal-mode) (\.\(dpr\|DPR\)\' . delphi-mode) (\.ad[abs]\' . ada-mode) (\.ad[bs].dg\' . ada-mode) (\.\([pP]\([Llm]\|erl\|od\)\|al\)\' . perl-mode) (Imakefile\' . makefile-imake-mode) (Makeppfile\(?:\.mk\)?\' . makefile-makepp-mode) (\.makepp\' . makefile-makepp-mode) (\.mk\' . makefile-gmake-mode) (\.make\' . makefile-gmake-mode) ([Mm]akefile\' . makefile-gmake-mode) (\.am\' . makefile-automake-mode) (\.texinfo\' . texinfo-mode) (\.te?xi\' . texinfo-mode) (\.[sS]\' . asm-mode) (\.asm\' . asm-mode) (\.css\' . css-mode) (\.mixal\' . mixal-mode) (\.gcov\' . compilation-mode) (/\.[a-z0-9-]*gdbinit . gdb-script-mode) (-gdb\.gdb . gdb-script-mode) ([cC]hange\.?[lL]og?\' . change-log-mode) ([cC]hange[lL]og[-.][0-9]+\' . change-log-mode) (\$CHANGE_LOG\$\.TXT . change-log-mode) (\.scm\.[0-9]*\' . scheme-mode) (\.[ckz]?sh\'\|\.shar\'\|/\.z?profile\' . sh-mode) (\.bash\' . sh-mode) (\(/\|\`\)\.\(bash_\(profile\|history\|log\(in\|out\)\)\|z?log\(in\|out\)\)\' . sh-mode) (\(/\|\`\)\.\(shrc\|zshrc\|m?kshrc\|bashrc\|t?cshrc\|esrc\)\' . sh-mode) (\(/\|\`\)\.\([kz]shenv\|xinitrc\|startxrc\|xsession\)\' . sh-mode) (\.m?spec\' . sh-mode) (\.m[mes]\' . nroff-mode) (\.man\' . nroff-mode) (\.sty\' . latex-mode) (\.cl[so]\' . latex-mode) (\.bbl\' . latex-mode) (\.bib\' . bibtex-mode) (\.bst\' . bibtex-style-mode) (\.sql\' . sql-mode) (\.m[4c]\' . m4-mode) (\.mf\' . metafont-mode) (\.mp\' . metapost-mode) (\.vhdl?\' . vhdl-mode) (\.article\' . text-mode) (\.letter\' . text-mode) (\.i?tcl\' . tcl-mode) (\.exp\' . tcl-mode) (\.itk\' . tcl-mode) (\.icn\' . icon-mode) (\.sim\' . simula-mode) (\.mss\' . scribe-mode) (\.f9[05]\' . f90-mode) (\.f0[38]\' . f90-mode) (\.indent\.pro\' . fundamental-mode) (\.\(pro\|PRO\)\' . idlwave-mode) (\.srt\' . srecode-template-mode) (\.prolog\' . prolog-mode) (\.tar\' . tar-mode) (\.\(arc\|zip\|lzh\|lha\|zoo\|[jew]ar\|xpi\|rar\|cbr\|7z\|ARC\|ZIP\|LZH\|LHA\|ZOO\|[JEW]AR\|XPI\|RAR\|CBR\|7Z\)\' . archive-mode) (\.oxt\' . archive-mode) (\.\(deb\|[oi]pk\)\' . archive-mode) (\`/tmp/Re . text-mode) (/Message[0-9]*\' . text-mode) (\`/tmp/fol/ . text-mode) (\.oak\' . scheme-mode) (\.sgml?\' . sgml-mode) (\.x[ms]l\' . xml-mode) (\.dbk\' . xml-mode) (\.dtd\' . sgml-mode) (\.ds\(ss\)?l\' . dsssl-mode) (\.jsm?\' . javascript-mode) (\.json\' . javascript-mode) (\.jsx\' . js-jsx-mode) (\.[ds]?vh?\' . verilog-mode) (\.by\' . bovine-grammar-mode) (\.wy\' . wisent-grammar-mode) ([:/\]\..*\(emacs\|gnus\|viper\)\' . emacs-lisp-mode) (\`\..*emacs\' . emacs-lisp-mode) ([:/]_emacs\' . emacs-lisp-mode) (/crontab\.X*[0-9]+\' . shell-script-mode) (\.ml\' . lisp-mode) (\.ld[si]?\' . ld-script-mode) (ld\.?script\' . ld-script-mode) (\.xs\' . c-mode) (\.x[abdsru]?[cnw]?\' . ld-script-mode) (\.zone\' . dns-mode) (\.soa\' . dns-mode) (\.asd\' . lisp-mode) (\.\(asn\|mib\|smi\)\' . snmp-mode) (\.\(as\|mi\|sm\)2\' . snmpv2-mode) (\.\(diffs?\|patch\|rej\)\' . diff-mode) (\.\(dif\|pat\)\' . diff-mode) (\.[eE]?[pP][sS]\' . ps-mode) (\.\(?:PDF\|DVI\|OD[FGPST]\|DOCX?\|XLSX?\|PPTX?\|pdf\|djvu\|dvi\|od[fgpst]\|docx?\|xlsx?\|pptx?\)\' . doc-view-mode-maybe) (configure\.\(ac\|in\)\' . autoconf-mode) (\.s\(v\|iv\|ieve\)\' . sieve-mode) (BROWSE\' . ebrowse-tree-mode) (\.ebrowse\' . ebrowse-tree-mode) (#\*mail\* . mail-mode) (\.g\' . antlr-mode) (\.mod\' . m2-mode) (\.ses\' . ses-mode) (\.docbook\' . sgml-mode) (\.com\' . dcl-mode) (/config\.\(?:bat\|log\)\' . fundamental-mode) (\.\(?:[iI][nN][iI]\|[lL][sS][tT]\|[rR][eE][gG]\|[sS][yY][sS]\)\' . conf-mode) (\.la\' . conf-unix-mode) (\.ppd\' . conf-ppd-mode) (java.+\.conf\' . conf-javaprop-mode) (\.properties\(?:\.[a-zA-Z0-9._-]+\)?\' . conf-javaprop-mode) (\.toml\' . conf-toml-mode) (\.desktop\' . conf-desktop-mode) (\`/etc/\(?:DIR_COLORS\|ethers\|.?fstab\|.*hosts\|lesskey\|login\.?de\(?:fs\|vperm\)\|magic\|mtab\|pam\.d/.*\|permissions\(?:\.d/.+\)?\|protocols\|rpc\|services\)\' . conf-space-mode) (\`/etc/\(?:acpid?/.+\|aliases\(?:\.d/.+\)?\|default/.+\|group-?\|hosts\..+\|inittab\|ksysguarddrc\|opera6rc\|passwd-?\|shadow-?\|sysconfig/.+\)\' . conf-mode) ([cC]hange[lL]og[-.][-0-9a-z]+\' . change-log-mode) (/\.?\(?:gitconfig\|gnokiirc\|hgrc\|kde.*rc\|mime\.types\|wgetrc\)\' . conf-mode) (/\.\(?:enigma\|gltron\|gtk\|hxplayer\|net\|neverball\|qt/.+\|realplayer\|scummvm\|sversion\|sylpheed/.+\|xmp\)rc\' . conf-mode) (/\.\(?:gdbtkinit\|grip\|orbital/.+txt\|rhosts\|tuxracer/options\)\' . conf-mode) (/\.?X\(?:default\|resource\|re\)s\> . conf-xdefaults-mode) (/X11.+app-defaults/\|\.ad\' . conf-xdefaults-mode) (/X11.+locale/.+/Compose\' . conf-colon-mode) (/X11.+locale/compose\.dir\' . conf-javaprop-mode) (\.~?[0-9]+\.[0-9][-.0-9]*~?\' nil t) (\.\(?:orig\|in\|[bB][aA][kK]\)\' nil t) ([/.]c\(?:on\)?f\(?:i?g\)?\(?:\.[a-zA-Z0-9._-]+\)?\' . conf-mode-maybe) (\.[1-9]\' . nroff-mode) (\.tgz\' . tar-mode) (\.tbz2?\' . tar-mode) (\.txz\' . tar-mode) (\.tzst\' . tar-mode))
