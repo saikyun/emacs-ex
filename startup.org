@@ -1,3 +1,7 @@
+#+BEGIN_SRC emacs-lisp
+;; -*- lexical-binding: t -*-
+#+END_SRC
+
 * startup.org
 This is my file for configurating emacs. There are many like it, but this one is mine.
 ** Saker att fixa
@@ -9,112 +13,60 @@ This is my file for configurating emacs. There are many like it, but this one is
 *** DONE Gruppera koden
 *** DONE Fixa auto indent mode
 * Koden
-** Add the paths to melpa.
-#+begin_src emacs-lisp
-(let* ((no-ssl (and (memq system-type '(windows-nt ms-dos))
-                    (not (gnutls-available-p))))
-       (proto (if no-ssl "http" "https")))
-  ;; Comment/uncomment these two lines to enable/disable MELPA and MELPA Stable as desired
-  (add-to-list 'package-archives (cons "melpa" (concat proto "://melpa.org/packages/")) t)
-  ;;(add-to-list 'package-archives (cons "melpa-stable" (concat proto "://stable.melpa.org/packages/")) t)
-  (when (< emacs-major-version 24)
-    ;; For important compatibility libraries like cl-lib
-    (add-to-list 'package-archives '("gnu" . (concat proto "://elpa.gnu.org/packages/")))))
-#+end_src
-
-#+RESULTS:
-
 ** Systemgrejer (t.ex. server-start och binda om C-x/C-u
 #+BEGIN_SRC emacs-lisp
   (server-start)
 
   (desktop-save-mode 1)
 
+  (defun my-desktop-save ()
+    (interactive)
+    ;; Don't call desktop-save-in-desktop-dir, as it prints a message.
+    (if (eq (desktop-owner) (emacs-pid))
+        (desktop-save desktop-dirname)))
+  (add-hook 'auto-save-hook 'my-desktop-save)
+
   (setenv "PATH" (concat (getenv "PATH") ";C:\\Program Files\\Git\\mingw64\\bin"))
   (setenv "PATH" (concat (getenv "PATH") ";C:\\Users\\u045862\\AppData\\Roaming"))
   (add-to-list 'exec-path "C:/Users/u045862/AppData/Roaming")
 
+  (keyboard-translate ?\C-x ?\C-u)
+  (keyboard-translate ?\C-u ?\C-x)
+
+  (define-key key-translation-map [?\M-x] [?\M-u])
+  (define-key key-translation-map [?\M-u] [?\M-x])
+
   (defalias 'yes-or-no-p 'y-or-n-p)
 #+END_SRC
 
-#+RESULTS:
-: yes-or-no-p
-
-** org-mode
+*** Backups
 #+BEGIN_SRC emacs-lisp
-  (setq org-todo-keywords '((sequence "TODO" "WAITING" "|" "DONE")))
+  (setq
+   backup-by-copying t      ; don't clobber symlinks
+   backup-directory-alist
+   '(("." . "~/.emacs-saves/"))    ; don't litter my fs tree
+   delete-old-versions t
+   kept-new-versions 6
+   kept-old-versions 2
+   version-control t)       ; use versioned backups
 
-  (add-hook 'org-mode-hook '(lambda ()
-                              (add-hook 'after-save-hook 'org-babel-tangle nil t)))
+  (setq auto-save-file-name-transforms
+        `((".*" "~/.emacs-saves/" t)))
+
+  (setq create-lockfiles nil)
 #+END_SRC
 
 #+RESULTS:
-| (lambda nil (print hej) (add-hook (quote after-save-hook) (quote org-babel-tangle) nil t)) | auto-indent-turn-on-org-indent | (lambda nil (add-hook (quote after-save-hook) (quote org-babel-tangle) nil t)) | #[0 \300\301\302\303\304$\207 [add-hook change-major-mode-hook org-show-block-all append local] 5] | #[0 \300\301\302\303\304$\207 [add-hook change-major-mode-hook org-babel-show-result-all append local] 5] | org-babel-result-hide-spec | org-babel-hide-all-hashes |
 
-** projectile-mode
+*** Mac-specifikt
 #+BEGIN_SRC emacs-lisp
-  (require 'projectile)
-  (projectile-global-mode)
-(define-key projectile-mode-map (kbd "s-p") 'projectile-command-map)
-(define-key projectile-mode-map (kbd "C-c p") 'projectile-command-map)
+  (when (memq window-system '(mac ns))
+  (add-to-list 'exec-path "/usr/local/bin")
+    (exec-path-from-shell-initialize))
 #+END_SRC
 
 #+RESULTS:
-: projectile-command-map
-
-** helm and helm-projectile.
-#+begin_src emacs-lisp
-  (require 'helm-config)
-  (helm-mode 1)
-
-  (require 'helm-projectile)
-  (helm-projectile-on)
-
-  (setq projectile-switch-project-action #'helm-projectile)
-#+end_src
-
-#+RESULTS:
-: helm-projectile
-
-** clojure and cider
-*** Clojure
-#+BEGIN_SRC emacs-lisp
-  (add-to-list 'auto-mode-alist '("\\.cljs\\'" . clojure-mode))
-  (add-to-list 'auto-mode-alist '("\\.clj\\'" . clojure-mode))
-  (add-hook 'clojure-mode 'paredit-mode)
-#+END_SRC
-
-#+RESULTS:
-| paredit-mode |
-
-*** Cider
-#+BEGIN_SRC emacs-lisp
-  (add-hook 'cider-repl-mode-hook 'enable-paredit-mode)
-  (add-hook 'clojure-mode-hook 'enable-paredit-mode)
-
-  (setq cider-repl-use-pretty-printing t)
-(require 'cider)
-
-  (define-key cider-repl-mode-map (kbd "RET") #'cider-repl-newline-and-indent)
-  (define-key cider-repl-mode-map (kbd "C-<return>") #'cider-repl-return)
-#+END_SRC
-
-#+RESULTS:
-: cider-repl-return
-
-** highlight-symbol
-#+BEGIN_SRC emacs-lisp
-  (require 'highlight-symbol)
-
-  (global-set-key [(control f3)] 'highlight-symbol)
-  (global-set-key [(control shift f3)] 'highlight-symbol-remove-all)
-  (global-set-key [f3] 'highlight-symbol-next)
-  (global-set-key [(shift f3)] 'highlight-symbol-prev)
-  (global-set-key [(meta f3)] 'highlight-symbol-query-replace)
-#+END_SRC
-
-#+RESULTS:
-: highlight-symbol-query-replace
+: ((MANPATH) (PATH . /Users/jona/.nix-profile/bin:/Users/jona/xiki-project/bin:/usr/local/opt/openssl/bin:/Users/jona/.cargo/bin:/usr/local/sbin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:/usr/local/bin:/opt/X11/bin:/usr/local/share/dotnet:/opt/ImageMagick/bin:/Library/Frameworks/Mono.framework/Versions/Current/Commands:/sbin;C:\Program Files\Git\mingw64\bin;C:\Users\u045862\AppData\Roaming:/Users/jona/programmering/yagarto/yagarto-4.7.2/bin:/Users/jona/programmering/yagarto/yagarto-4.7.2/tools:/Users/jona/programmering/android_tools:/Users/jona/Library/Android/sdk//tools:/Users/jona/Library/Android/sdk//platform-tools:/Applications/Racket v6.8/bin:/Users/jona/.cabal/bin:/Users/jona/programmering/memset-snip:/Users/jona/.emacs.d:/Users/jona/programmering/haskell/learn-shelly:/Users/jona/programmering/ngrok-dir))
 
 ** Add scripts added without package.el.
 #+begin_src emacs-lisp
@@ -133,16 +85,457 @@ This is my file for configurating emacs. There are many like it, but this one is
 #+RESULTS:
 : t
 
-** Konfiguration f�r paredit.
+
+** Modes
+*** lua
 #+BEGIN_SRC emacs-lisp
-  (eval-after-load 'paredit
-    '(progn
-       (define-key paredit-mode-map (kbd "C-<backspace>") 'paredit-backward-kill-word)))
+  (require 'lua-mode)
+  (require 'love-minor-mode)
+
+  (define-key lua-mode-map (kbd "C-c C-c") (lambda () (interactive) (compile "love .")))
+  (add-hook 'lua-mode-hook
+            (lambda ()
+              (if  (file-exists-p "main.lua")
+                  (progn 
+                    (set (make-local-variable 'compile-command) "love . ")
+                    (add-to-list 'compilation-error-regexp-alist 'love t)
+                    (add-to-list 'compilation-error-regexp-alist-alist
+                                 '(love "^Error: Syntax error: \\(.*?\\):\\([0-9]+\\):.*$" 1 2) t))
+                (set (make-local-variable 'compile-command)
+                     (concat "lua " (file-name-nondirectory buffer-file-name))))))
 
 #+END_SRC
 
 #+RESULTS:
-: paredit-backward-kill-word
+| (lambda nil (if (file-exists-p main.lua) (progn (set (make-local-variable (quote compile-command)) love . ) (add-to-list (quote compilation-error-regexp-alist) (quote love) t) (add-to-list (quote compilation-error-regexp-alist-alist) (quote (love ^Error: Syntax error: \(.*?\):\([0-9]+\):.*$ 1 2)) t)) (set (make-local-variable (quote compile-command)) (concat lua  (file-name-nondirectory buffer-file-name))))) | (lambda nil (if (file-exists-p main.lua) (progn (set (make-local-variable (quote compile-command)) love . ) (if (member (quote love) compilation-error-regexp-alist) compilation-error-regexp-alist (setq compilation-error-regexp-alist (append compilation-error-regexp-alist (list (quote love))))) (if (member (quote (love ^Error: Syntax error: \(.*?\):\([0-9]+\):.*$ 1 2)) compilation-error-regexp-alist-alist) compilation-error-regexp-alist-alist (setq compilation-error-regexp-alist-alist (append compilation-error-regexp-alist-alist (list (quote (love ^Error: Syntax error: \(.*?\):\([0-9]+\):.*$ 1 2))))))) (set (make-local-variable (quote compile-command)) (concat lua  (file-name-nondirectory buffer-file-name))))) | love/possibly-enable-mode |
+
+*** org
+#+BEGIN_SRC emacs-lisp
+  (setq org-todo-keywords '((sequence "TODO" "WAITING" "|" "DONE")))
+
+  (add-hook 'org-mode-hook '(lambda ()
+                              (add-hook 'after-save-hook 'org-babel-tangle nil t)))
+#+END_SRC
+
+#+RESULTS:
+| (lambda nil (add-hook (quote after-save-hook) (quote org-babel-tangle) nil t)) | #[0 \300\301\302\303\304$\207 [add-hook change-major-mode-hook org-show-block-all append local] 5] | #[0 \300\301\302\303\304$\207 [add-hook change-major-mode-hook org-babel-show-result-all append local] 5] | org-babel-result-hide-spec | org-babel-hide-all-hashes | (lambda nil (local-unset-key (kbd C-<tab>))) | auto-indent-turn-on-org-indent |
+*** tide
+#+BEGIN_SRC emacs-lisp
+  (defun setup-tide-mode ()
+    (interactive)
+    (tide-setup)
+    (flycheck-mode +1)
+    (setq flycheck-check-syntax-automatically '(save mode-enabled))
+    (eldoc-mode +1)
+    (tide-hl-identifier-mode +1))
+  ;; formats the buffer before saving
+  (add-hook 'before-save-hook 'tide-format-before-save)
+
+  (add-hook 'typescript-mode-hook #'setup-tide-mode)
+#+END_SRC
+
+#+RESULTS:
+| setup-tide-mode |
+
+*** projectile
+#+BEGIN_SRC emacs-lisp
+  (require 'projectile)
+  (projectile-global-mode)
+(define-key projectile-mode-map (kbd "s-p") 'projectile-command-map)
+(define-key projectile-mode-map (kbd "C-c p") 'projectile-command-map)
+#+END_SRC
+
+#+RESULTS:
+: projectile-command-map
+
+*** helm and helm-projectile.
+#+begin_src emacs-lisp
+  (require 'helm-config)
+  (helm-mode 1)
+
+  (require 'helm-projectile)
+  (helm-projectile-on)
+
+  (setq projectile-switch-project-action #'helm-projectile)
+#+end_src
+
+#+RESULTS:
+: helm-projectile
+
+*** clojure and cider
+**** Clojure
+#+BEGIN_SRC emacs-lisp
+  (add-to-list 'auto-mode-alist '("\\.cljs\\'" . clojure-mode))
+  (add-to-list 'auto-mode-alist '("\\.clj\\'" . clojure-mode))
+  (add-hook 'clojure-mode 'paredit-mode)
+#+END_SRC
+
+#+RESULTS:
+| paredit-mode |
+
+**** Cider
+#+BEGIN_SRC emacs-lisp
+  (add-hook 'cider-repl-mode-hook 'enable-paredit-mode)
+  (add-hook 'clojure-mode-hook 'enable-paredit-mode)
+
+  (setq cider-repl-use-pretty-printing t)
+(require 'cider)
+
+  (define-key cider-repl-mode-map (kbd "RET") #'cider-repl-return) 
+  (define-key cider-repl-mode-map (kbd "C-<return>") #'cider-repl-newline-and-indent)
+#+END_SRC
+
+#+RESULTS:
+: cider-repl-newline-and-indent
+
+*** highlight-symbol
+#+BEGIN_SRC emacs-lisp
+  (require 'highlight-symbol)
+
+  (global-set-key [(control f3)] 'highlight-symbol)
+  (global-set-key [(control shift f3)] 'highlight-symbol-remove-all)
+  (global-set-key [f3] 'highlight-symbol-next)
+  (global-set-key [(shift f3)] 'highlight-symbol-prev)
+  (global-set-key [(meta f3)] 'highlight-symbol-query-replace)
+#+END_SRC
+
+#+RESULTS:
+: highlight-symbol-query-replace
+
+*** paredit
+#+BEGIN_SRC emacs-lisp
+  (require 'paredit)
+  (define-key paredit-mode-map (kbd "C-<backspace>") 'paredit-backward-kill-word)
+  (define-key paredit-mode-map (kbd "A-<backspace>") 'paredit-backward-kill-word)
+
+  (define-key paredit-mode-map (kbd "C-M-ä") 'kill-sexp)
+  (define-key paredit-mode-map (kbd "C-M-å") 'backward-kill-sexp)
+
+  (define-key paredit-mode-map (kbd "<C-left>") 'paredit-backward)
+  (define-key paredit-mode-map (kbd "<C-right>") 'paredit-forward)
+  (define-key paredit-mode-map (kbd "<C-down>") 'paredit-forward-down)
+  (define-key paredit-mode-map (kbd "<C-up>") 'paredit-backward-up)
+  (define-key paredit-mode-map (kbd "<C-M-down>") 'paredit-forward-up)
+  (define-key paredit-mode-map (kbd "<C-M-up>") 'paredit-backward-down)
+
+  (define-key paredit-mode-map (kbd "<M-left>") 'paredit-forward-barf-sexp)
+  (define-key paredit-mode-map (kbd "<M-right>") 'paredit-forward-slurp-sexp)
+
+  (define-key paredit-mode-map (kbd "<C-M-left>") 'paredit-backward-slurp-sexp)
+  (define-key paredit-mode-map (kbd "<C-M-right>") 'paredit-backward-barf-sexp)
+
+  (define-key paredit-mode-map (kbd "C-c (") 'paredit-wrap-sexp)
+
+  (define-key paredit-mode-map (kbd "{") 'paredit-open-curly)
+
+  (defvar electrify-return-match
+    "[\]}\)\"]"
+    "If this regexp matches the text after the cursor, do an \"electric\"
+    return.")
+  (defun electrify-return-if-match (arg)
+    "If the text after the cursor matches `electrify-return-match' then
+    open and indent an empty line between the cursor and the text.  Move the
+    cursor to the new line."
+    (interactive "P")
+    (let ((case-fold-search nil))
+      (if (looking-at electrify-return-match)
+          (save-excursion (newline-and-indent)))
+      (newline arg)
+      (indent-according-to-mode)))
+
+
+#+END_SRC
+
+#+RESULTS:
+: electrify-return-if-match
+
+*** auto-indent
+#+BEGIN_SRC emacs-lisp
+  (require 'auto-indent-mode)
+  (auto-indent-global-mode)
+#+END_SRC
+
+#+RESULTS:
+: t
+
+*** inf-clojure & arcadia
+**** Arcadia
+#+BEGIN_SRC emacs-lisp
+  (require 'inf-clojure)
+
+  (require 'miracle)
+  (add-hook 'clojure-mode-hook 'clojure-enable-miracle)
+  (add-hook 'miracle-mode-hook 'paredit-mode)
+
+
+  (defcustom arcadia-repl-port 37220
+    "Port to connect to Arcadia repl.")
+
+  (defun arcadia-repl ()
+    "Attempts to connect to a running Arcadia instance over the Arcadia socket-repl."
+    (interactive)
+    (inf-clojure-connect "localhost" arcadia-repl-port))
+
+
+  ;; inf-clojure's argslists eldoc support spams the Arcadia repl
+  ;; and slows down emacs. This (removable) empty wrapper function is a
+  ;; quick kludge to disable it.
+  (defun arcadia-inf-clojure-eldoc-setup-wrapper (orig-fun &rest args))
+
+  ;; Temporary hack that disables eldoc for inf-clojure.
+  (advice-add 'inf-clojure-eldoc-setup :around #'arcadia-inf-clojure-eldoc-setup-wrapper)
+
+  (setq inf-clojure-repl-type 'clojure)
+
+  (defun inf-clojure-change-to-ns (nsn)
+    (interactive "sNamespace to go to: ")
+    (inf-clojure--process-response
+     (concat "(do (if-not (find-ns '" nsn ") (try (require '" nsn " :reload) (catch Exception e (ns " nsn " )))) (in-ns '" nsn "))")
+     (inf-clojure-proc)))
+
+  (defun inf-clojure-eval-in-ns (nsn command)
+    (interactive "sNamespace to go to: \nsCommand: ")
+    (inf-clojure--process-response
+     (concat "(do (if-not (find-ns '" nsn ") (try (require '" nsn " :reload) (catch Exception e (ns " nsn " )))) (in-ns '" nsn ")" command ")")
+     (inf-clojure-proc)))
+
+  (defun inf-clojure-eval-in-ns-of-current-file (command)
+    (interactive "sCommand: ")
+    (if-let ((ns (clojure-find-ns)))
+        (inf-clojure-eval-in-ns ns command)
+      (inf-clojure--process-response command (inf-clojure-proc))))
+
+  (defun inf-clojure-eval-last-sexp-in-ns-of-current-file ()
+    (interactive)
+    (if (not (equal (buffer-name (current-buffer)) inf-clojure-buffer))
+        (inf-clojure-set-ns nil))
+    (inf-clojure-eval-last-sexp))
+
+  (defun go-to-csharp-definition ()
+    "Go to the definition of a C# class from a clj-file."
+    (interactive)
+    (let ((pos (- (point) (line-beginning-position)))
+          (beg (progn (re-search-forward "[[:space:]]")
+                      (match-beginning 0)))
+          (end (progn (backward-char)
+                      (re-search-backward "[[:space:]]")
+                      (match-end 0)))
+                                          ;(beg (line-beginning-position))
+                                          ;(end (line-end-position))
+          )
+      (copy-region-as-kill beg end)
+      (find-file-other-window (concat
+                               (cdr (assoc :project-root omnisharp--server-info))
+                               "/temp-file.cs"))
+      (erase-buffer)
+      (let ((buffer-name (buffer-name)))
+        (insert "using UnityEngine;
+
+  public class Lul {
+  ")
+        (yank)
+        (insert "
+  }")
+        (previous-line)
+        (end-of-line)
+        (backward-char)
+        (omnisharp-go-to-definition))))
+
+  (defvar get-interns-form
+    "(defn ns-interns-of-aliases
+  [ns]
+  (->> ns
+  ns-aliases
+  (map #(vector (first %) (keys (ns-interns (second %)))))
+  (into {})))
+
+  (defn keys-to-prefixes
+  [coll]
+  (->> coll
+  (map (fn [[k vs]] (map #(str k \"/\" %) vs)))
+  flatten
+  (map symbol)))")
+
+  (defvar get-all-vars-form
+    "(defn get-all-vars [ns]
+    (map str (concat (keys (ns-map ns))
+            (keys-to-prefixes (ns-interns-of-aliases ns)))))")
+
+  (defun arcadia-get-public-members ()
+    "Get the public members of a type."
+    (interactive)
+    (let* ((pos (point))
+           (beg (progn (re-search-backward "(")
+                       (match-beginning 0)))
+           (end (progn (re-search-forward ")")
+                       (match-end 0)))
+           (identifier (buffer-substring beg end))
+           (names (cdr (car (read-from-string identifier)))))
+      (print names)
+      (print (string-join (mapcar 'prin1-to-string names) " '"))
+      (let ((res (car (read-from-string (inf-clojure--process-response
+                                         (concat "(get-names (get-public-members (get-type-of-nested-member "
+                                                 (string-join (mapcar 'prin1-to-string names) " '")
+                                                 ")))")
+                                         (inf-clojure-proc))))))
+        (goto-char pos)
+        (print res)
+        res)))
+
+  (defun helm-arcadia-show-members ()
+    (interactive)
+    (let ((chosen (helm :sources (helm-build-sync-source "test"
+                                   :candidates (arcadia-get-public-members))
+                        :buffer "*helm my command*")))
+      (when chosen
+        (insert " ")
+        (insert chosen))))
+
+  (defun inf-clojure-vars ()
+    "Gets a list of the functions in the current namespace."
+    (interactive)
+    (let ((res (car (read-from-string (inf-clojure-eval-in-ns-of-current-file
+                                       (concat "(do " get-all-vars-form " (get-all-vars *ns*))"))))))
+      (sort (mapcar 'prin1-to-string res) 'string<)))
+
+  (defun helm-arcadia-vars ()
+    "List all vars."
+    (interactive)
+    (let ((chosen (helm :sources (helm-build-sync-source "Functions in namespace"
+                                   :candidates (inf-clojure-vars))
+                        :buffer "*helm my command*")))
+      (when chosen
+        (insert chosen))))
+
+  (defun helm-arcadia-completion-at-point ()
+    "Gets the last word and starts helm using the word as input, and all the functions available in the current inf-clojure process."
+    (interactive)
+    (let* ((pos (point))
+           (beg (progn (re-search-backward "[[:space:]]\\|\n\\|(\\|^")
+                       (forward-char)
+                       (match-end 0)))
+           (end (progn (re-search-forward "[[:space:]]\\|\n\\|)\\|$")
+                       (backward-char)
+                       (match-beginning 0)))
+           (identifier (buffer-substring beg end))
+           (parsed-id (car (read-from-string identifier))))
+
+      (let ((chosen (helm :sources (helm-build-sync-source "Functions in namespace"
+                                     :candidates (inf-clojure-vars))
+                          :buffer "*helm my command*"
+                          :input (prin1-to-string parsed-id))))
+        (when chosen
+          (kill-region beg end)
+          (insert chosen)))))
+
+  (defun inf-clojure-source-of-function (fun)
+    "Gets the source for a function."
+    (interactive "sSource of clojure function: ")
+    (let ((res (inf-clojure-eval-in-ns-of-current-file
+                (concat "(do (require '[clojure.repl :as temp-clojure-repl-ns]) (temp-clojure-repl-ns/source "
+                        fun
+                        "))"))))
+      (switch-to-buffer-other-window "*inf-clojure-source*")
+      (erase-buffer)
+      (clojure-mode)
+      (insert res)
+      (goto-char 0)
+      (while (re-search-forward "" nil t)
+        (replace-match ""))))
+
+  (defun helm-inf-clojure-source-of-function ()
+    (interactive)
+    (let ((chosen (helm :sources (helm-build-sync-source "Functions in namespace"
+                                   :candidates (inf-clojure-get-available-functions))
+                        :buffer "*helm my command*")))
+      (when chosen
+        (inf-clojure-source-of-function chosen))))
+
+  (defun inf-clojure-source-of-function-at-point ()
+    (interactive)
+    (let* ((pos (point))
+           (beg (progn (re-search-backward "[[:space:]]\\|\n\\|(")
+                       (forward-char)
+                       (match-end 0)))
+           (end (progn (re-search-forward "[[:space:]]\\|\n\\|)")
+                       (backward-char)
+                       (match-beginning 0)))
+           (identifier (buffer-substring beg end))
+           (parsed-id (car (read-from-string identifier))))
+      (inf-clojure-source-of-function identifier)))
+
+  ;; (eval-after-load 'clojure-mode
+  ;;   '(progn
+  ;;      (define-key clojure-mode-map (kbd "<tab>") 'helm-arcadia-completion-at-point)
+  ;;      (define-key clojure-mode-map (kbd "M-.") 'inf-clojure-source-of-function-at-point)
+
+  ;;      (define-key clojure-mode-map (kbd "C-x C-e") 'inf-clojure-eval-last-sexp-in-ns-of-current-file)
+  ;;      (define-key clojure-mode-map (kbd "C-M-x") 'inf-clojure-eval-defun-in-ns-of-current-file)))
+
+#+END_SRC
+
+#+RESULTS:
+: inf-clojure-source-of-function-at-point
+**** Inf-clojure
+#+BEGIN_SRC emacs-lisp
+    (require 'clojure-mode)
+
+    (add-hook 'clojure-mode-hook 'paredit-mode)
+    (add-hook 'clojure-mode-hook 'auto-indent-mode)
+
+    (require 'inf-clojure)
+
+      (define-key inf-clojure-minor-mode-map (kbd "<tab>") 'helm-arcadia-completion-at-point)
+    (define-key inf-clojure-minor-mode-map (kbd "M-.") 'inf-clojure-source-of-function-at-point)
+
+  (define-key inf-clojure-mode-map (kbd "<M-return>") 'comint-send-input)
+
+                                            ;(define-key inf-clojure-minor-mode-map (kbd "\C-x\C-e") 'inf-clojure-eval-last-sexp-in-ns-of-current-file)
+
+
+  ;  (setq inf-clojure-log-activity nil)
+
+    (defun cljs-figwheel-repl ()
+      (interactive)
+      (inf-clojure "lein figwheel"))
+
+  ;  (add-hook 'clojure-mode-hook #'inf-clojure-minor-mode)
+
+    ;; transpose sexp
+    ;; kill sexp
+    ;; next/prev sexp
+    ;; into/out sexp back/forward
+
+    (fset 'inf-clojure-load-current-file-no-prompt
+          (lambda (&optional arg) "Keyboard macro." (interactive "p") (kmacro-exec-ring-item (quote ([134217845 105 110 102 32 99 108 111 106 117 114 101 45 108 111 97 100 45 105 backspace 102 105 108 101 return return] 0 "%d")) arg)))
+
+    ;; (eval-after-load 'clojure-mode
+    ;;   '(progn
+    ;;      (define-key clojure-mode-map (kbd "C-:") nil)
+    ;;      (define-key clojure-mode-map (kbd "C-c C-j") 'cljs-figwheel-repl)
+    ;;      (define-key clojure-mode-map (kbd "C-c C-p") 'arcadia-repl)
+    ;;      (define-key clojure-mode-map (kbd "C-c C-z") 'inf-clojure-switch-to-repl)
+    ;;      (define-key clojure-mode-map (kbd "C-å") 'inf-clojure-eval-defun)
+    ;;      (define-key clojure-mode-map (kbd "C-c C-l") 'inf-clojure-load-current-file-no-prompt)
+    ;;      (define-key clojure-mode-map (kbd "C-S-c C-l") 'inf-clojure-eval-buffer)
+    ;;      (define-key clojure-mode-map (kbd "C-x C-ö") 'inf-clojure-eval-defun-and-go)))
+
+    (add-hook 'inf-clojure-mode-hook 'paredit-mode)
+
+    (provide 'clojure-conf)
+
+#+END_SRC
+
+#+RESULTS:
+: clojure-conf
+*** multi-line
+#+BEGIN_SRC emacs-lisp
+  (require 'multi-line)
+  (global-set-key (kbd "C-c d") 'multi-line)
+#+END_SRC
+
+#+RESULTS:
+: multi-line
 
 ** Lisp-modes (bl.a. starta paredit-mode)
 #+BEGIN_SRC emacs-lisp
@@ -154,37 +547,21 @@ This is my file for configurating emacs. There are many like it, but this one is
 #+RESULTS:
 | enable-paredit-mode |
 
-** Utility
-*** Radbrytningar
-#+BEGIN_SRC emacs-lisp
-  (defun end-of-line-newline ()
-    (interactive)
-    (end-of-line)
-    (newline))
-#+END_SRC
-
-#+RESULTS:
-: end-of-line-newline
-*** Buffer-jox
-#+BEGIN_SRC emacs-lisp
-  (defun show-file-name ()
-    "Show the full path file name in the minibuffer."
-    (interactive)
-    (message (buffer-file-name))
-    (kill-new (file-truename buffer-file-name)))
-#+END_SRC
-
-#+RESULTS:
-: show-file-name
-
 ** Globala hotkeys
 *** Generella
 #+BEGIN_SRC emacs-lisp
   (global-set-key (kbd "M-m") 'delete-indentation)
   (global-set-key (kbd "C-S-z") 'revert-buffer)
 
+  (global-set-key (kbd "<home>") 'beginning-of-line)
+  (global-set-key (kbd "<end>") 'end-of-line)
+
   (global-set-key (kbd "C-S-m") 'end-of-line-newline)
+  (global-set-key (kbd "C-<return>") 'end-of-line-newline)
   (global-set-key (kbd "<tab>") 'completion-at-point)
+
+  (global-set-key (kbd "C-c ;") 'comment-or-uncomment-region)
+
   (define-key minibuffer-local-map (kbd "<tab>") 'helm-select-action)
 
   (global-set-key (kbd "C-.") 'avy-goto-word-1)
@@ -192,11 +569,23 @@ This is my file for configurating emacs. There are many like it, but this one is
   (global-set-key (kbd "C-M-:") 'avy-copy-line)
 
   (global-set-key (kbd "C-c b p") 'show-file-name)
-
 #+END_SRC
 
 #+RESULTS:
 : show-file-name
+*** Hopp-hax
+#+BEGIN_SRC emacs-lisp
+(global-set-key (kbd "<M-delete>") 'kill-word)
+
+  (global-set-key (kbd "<A-left>") 'backward-word)
+  (global-set-key (kbd "<A-right>") 'forward-word)
+  (global-set-key (kbd "<A-backspace>") 'backward-kill-word)
+  (global-set-key (kbd "<A-kp-delete>") 'kill-word)
+#+END_SRC
+
+#+RESULTS:
+: kill-word
+
 *** Lisp
 #+BEGIN_SRC emacs-lisp
   (global-set-key (kbd "C-c C-c") 'eval-defun)
@@ -229,3 +618,26 @@ This is my file for configurating emacs. There are many like it, but this one is
 
 #+RESULTS:
 : ((\.odc\' . archive-mode) (\.odf\' . archive-mode) (\.odi\' . archive-mode) (\.otp\' . archive-mode) (\.odp\' . archive-mode) (\.otg\' . archive-mode) (\.odg\' . archive-mode) (\.ots\' . archive-mode) (\.ods\' . archive-mode) (\.odm\' . archive-mode) (\.ott\' . archive-mode) (\.odt\' . archive-mode) (\.vbs\' . visual-basic-mode) (\.clj\' . lisp-mode) (\.cljs\' . lisp-mode) (\.gpg\(~\|\.~[0-9]+~\)?\' nil epa-file) (\.elc\' . elisp-byte-code-mode) (\.zst\' nil jka-compr) (\.dz\' nil jka-compr) (\.xz\' nil jka-compr) (\.lzma\' nil jka-compr) (\.lz\' nil jka-compr) (\.g?z\' nil jka-compr) (\.bz2\' nil jka-compr) (\.Z\' nil jka-compr) (\.vr[hi]?\' . vera-mode) (\(?:\.\(?:rbw?\|ru\|rake\|thor\|jbuilder\|rabl\|gemspec\|podspec\)\|/\(?:Gem\|Rake\|Cap\|Thor\|Puppet\|Berks\|Vagrant\|Guard\|Pod\)file\)\' . ruby-mode) (\.re?st\' . rst-mode) (\.py[iw]?\' . python-mode) (\.less\' . less-css-mode) (\.scss\' . scss-mode) (\.awk\' . awk-mode) (\.\(u?lpc\|pike\|pmod\(\.in\)?\)\' . pike-mode) (\.idl\' . idl-mode) (\.java\' . java-mode) (\.m\' . objc-mode) (\.ii\' . c++-mode) (\.i\' . c-mode) (\.lex\' . c-mode) (\.y\(acc\)?\' . c-mode) (\.h\' . c-or-c++-mode) (\.c\' . c-mode) (\.\(CC?\|HH?\)\' . c++-mode) (\.[ch]\(pp\|xx\|\+\+\)\' . c++-mode) (\.\(cc\|hh\)\' . c++-mode) (\.\(bat\|cmd\)\' . bat-mode) (\.[sx]?html?\(\.[a-zA-Z_]+\)?\' . mhtml-mode) (\.svgz?\' . image-mode) (\.svgz?\' . xml-mode) (\.x[bp]m\' . image-mode) (\.x[bp]m\' . c-mode) (\.p[bpgn]m\' . image-mode) (\.tiff?\' . image-mode) (\.gif\' . image-mode) (\.png\' . image-mode) (\.jpe?g\' . image-mode) (\.te?xt\' . text-mode) (\.[tT]e[xX]\' . tex-mode) (\.ins\' . tex-mode) (\.ltx\' . latex-mode) (\.dtx\' . doctex-mode) (\.org\' . org-mode) (\.el\' . emacs-lisp-mode) (Project\.ede\' . emacs-lisp-mode) (\.\(scm\|stk\|ss\|sch\)\' . scheme-mode) (\.l\' . lisp-mode) (\.li?sp\' . lisp-mode) (\.[fF]\' . fortran-mode) (\.for\' . fortran-mode) (\.p\' . pascal-mode) (\.pas\' . pascal-mode) (\.\(dpr\|DPR\)\' . delphi-mode) (\.ad[abs]\' . ada-mode) (\.ad[bs].dg\' . ada-mode) (\.\([pP]\([Llm]\|erl\|od\)\|al\)\' . perl-mode) (Imakefile\' . makefile-imake-mode) (Makeppfile\(?:\.mk\)?\' . makefile-makepp-mode) (\.makepp\' . makefile-makepp-mode) (\.mk\' . makefile-gmake-mode) (\.make\' . makefile-gmake-mode) ([Mm]akefile\' . makefile-gmake-mode) (\.am\' . makefile-automake-mode) (\.texinfo\' . texinfo-mode) (\.te?xi\' . texinfo-mode) (\.[sS]\' . asm-mode) (\.asm\' . asm-mode) (\.css\' . css-mode) (\.mixal\' . mixal-mode) (\.gcov\' . compilation-mode) (/\.[a-z0-9-]*gdbinit . gdb-script-mode) (-gdb\.gdb . gdb-script-mode) ([cC]hange\.?[lL]og?\' . change-log-mode) ([cC]hange[lL]og[-.][0-9]+\' . change-log-mode) (\$CHANGE_LOG\$\.TXT . change-log-mode) (\.scm\.[0-9]*\' . scheme-mode) (\.[ckz]?sh\'\|\.shar\'\|/\.z?profile\' . sh-mode) (\.bash\' . sh-mode) (\(/\|\`\)\.\(bash_\(profile\|history\|log\(in\|out\)\)\|z?log\(in\|out\)\)\' . sh-mode) (\(/\|\`\)\.\(shrc\|zshrc\|m?kshrc\|bashrc\|t?cshrc\|esrc\)\' . sh-mode) (\(/\|\`\)\.\([kz]shenv\|xinitrc\|startxrc\|xsession\)\' . sh-mode) (\.m?spec\' . sh-mode) (\.m[mes]\' . nroff-mode) (\.man\' . nroff-mode) (\.sty\' . latex-mode) (\.cl[so]\' . latex-mode) (\.bbl\' . latex-mode) (\.bib\' . bibtex-mode) (\.bst\' . bibtex-style-mode) (\.sql\' . sql-mode) (\.m[4c]\' . m4-mode) (\.mf\' . metafont-mode) (\.mp\' . metapost-mode) (\.vhdl?\' . vhdl-mode) (\.article\' . text-mode) (\.letter\' . text-mode) (\.i?tcl\' . tcl-mode) (\.exp\' . tcl-mode) (\.itk\' . tcl-mode) (\.icn\' . icon-mode) (\.sim\' . simula-mode) (\.mss\' . scribe-mode) (\.f9[05]\' . f90-mode) (\.f0[38]\' . f90-mode) (\.indent\.pro\' . fundamental-mode) (\.\(pro\|PRO\)\' . idlwave-mode) (\.srt\' . srecode-template-mode) (\.prolog\' . prolog-mode) (\.tar\' . tar-mode) (\.\(arc\|zip\|lzh\|lha\|zoo\|[jew]ar\|xpi\|rar\|cbr\|7z\|ARC\|ZIP\|LZH\|LHA\|ZOO\|[JEW]AR\|XPI\|RAR\|CBR\|7Z\)\' . archive-mode) (\.oxt\' . archive-mode) (\.\(deb\|[oi]pk\)\' . archive-mode) (\`/tmp/Re . text-mode) (/Message[0-9]*\' . text-mode) (\`/tmp/fol/ . text-mode) (\.oak\' . scheme-mode) (\.sgml?\' . sgml-mode) (\.x[ms]l\' . xml-mode) (\.dbk\' . xml-mode) (\.dtd\' . sgml-mode) (\.ds\(ss\)?l\' . dsssl-mode) (\.jsm?\' . javascript-mode) (\.json\' . javascript-mode) (\.jsx\' . js-jsx-mode) (\.[ds]?vh?\' . verilog-mode) (\.by\' . bovine-grammar-mode) (\.wy\' . wisent-grammar-mode) ([:/\]\..*\(emacs\|gnus\|viper\)\' . emacs-lisp-mode) (\`\..*emacs\' . emacs-lisp-mode) ([:/]_emacs\' . emacs-lisp-mode) (/crontab\.X*[0-9]+\' . shell-script-mode) (\.ml\' . lisp-mode) (\.ld[si]?\' . ld-script-mode) (ld\.?script\' . ld-script-mode) (\.xs\' . c-mode) (\.x[abdsru]?[cnw]?\' . ld-script-mode) (\.zone\' . dns-mode) (\.soa\' . dns-mode) (\.asd\' . lisp-mode) (\.\(asn\|mib\|smi\)\' . snmp-mode) (\.\(as\|mi\|sm\)2\' . snmpv2-mode) (\.\(diffs?\|patch\|rej\)\' . diff-mode) (\.\(dif\|pat\)\' . diff-mode) (\.[eE]?[pP][sS]\' . ps-mode) (\.\(?:PDF\|DVI\|OD[FGPST]\|DOCX?\|XLSX?\|PPTX?\|pdf\|djvu\|dvi\|od[fgpst]\|docx?\|xlsx?\|pptx?\)\' . doc-view-mode-maybe) (configure\.\(ac\|in\)\' . autoconf-mode) (\.s\(v\|iv\|ieve\)\' . sieve-mode) (BROWSE\' . ebrowse-tree-mode) (\.ebrowse\' . ebrowse-tree-mode) (#\*mail\* . mail-mode) (\.g\' . antlr-mode) (\.mod\' . m2-mode) (\.ses\' . ses-mode) (\.docbook\' . sgml-mode) (\.com\' . dcl-mode) (/config\.\(?:bat\|log\)\' . fundamental-mode) (\.\(?:[iI][nN][iI]\|[lL][sS][tT]\|[rR][eE][gG]\|[sS][yY][sS]\)\' . conf-mode) (\.la\' . conf-unix-mode) (\.ppd\' . conf-ppd-mode) (java.+\.conf\' . conf-javaprop-mode) (\.properties\(?:\.[a-zA-Z0-9._-]+\)?\' . conf-javaprop-mode) (\.toml\' . conf-toml-mode) (\.desktop\' . conf-desktop-mode) (\`/etc/\(?:DIR_COLORS\|ethers\|.?fstab\|.*hosts\|lesskey\|login\.?de\(?:fs\|vperm\)\|magic\|mtab\|pam\.d/.*\|permissions\(?:\.d/.+\)?\|protocols\|rpc\|services\)\' . conf-space-mode) (\`/etc/\(?:acpid?/.+\|aliases\(?:\.d/.+\)?\|default/.+\|group-?\|hosts\..+\|inittab\|ksysguarddrc\|opera6rc\|passwd-?\|shadow-?\|sysconfig/.+\)\' . conf-mode) ([cC]hange[lL]og[-.][-0-9a-z]+\' . change-log-mode) (/\.?\(?:gitconfig\|gnokiirc\|hgrc\|kde.*rc\|mime\.types\|wgetrc\)\' . conf-mode) (/\.\(?:enigma\|gltron\|gtk\|hxplayer\|net\|neverball\|qt/.+\|realplayer\|scummvm\|sversion\|sylpheed/.+\|xmp\)rc\' . conf-mode) (/\.\(?:gdbtkinit\|grip\|orbital/.+txt\|rhosts\|tuxracer/options\)\' . conf-mode) (/\.?X\(?:default\|resource\|re\)s\> . conf-xdefaults-mode) (/X11.+app-defaults/\|\.ad\' . conf-xdefaults-mode) (/X11.+locale/.+/Compose\' . conf-colon-mode) (/X11.+locale/compose\.dir\' . conf-javaprop-mode) (\.~?[0-9]+\.[0-9][-.0-9]*~?\' nil t) (\.\(?:orig\|in\|[bB][aA][kK]\)\' nil t) ([/.]c\(?:on\)?f\(?:i?g\)?\(?:\.[a-zA-Z0-9._-]+\)?\' . conf-mode-maybe) (\.[1-9]\' . nroff-mode) (\.tgz\' . tar-mode) (\.tbz2?\' . tar-mode) (\.txz\' . tar-mode) (\.tzst\' . tar-mode))
+
+** Utlity
+*** Radbrytningar
+#+BEGIN_SRC emacs-lisp
+  (defun end-of-line-newline ()
+    (interactive)
+    (end-of-line)
+    (newline))
+#+END_SRC
+
+#+RESULTS:
+: end-of-line-newline
+*** Buffer-jox
+#+BEGIN_SRC emacs-lisp
+  (defun show-file-name ()
+    "Show the full path file name in the minibuffer."
+    (interactive)
+    (message (buffer-file-name))
+    (kill-new (file-truename buffer-file-name)))
+#+END_SRC
+
+#+RESULTS:
+: show-file-name
