@@ -24,10 +24,15 @@
  '(auto-indent-indent-style (quote aggressive))
  '(auto-indent-next-pair nil)
  '(auto-indent-on-save-file t)
+ '(company-auto-complete t)
+ '(company-begin-commands nil)
+ '(company-idle-delay nil)
  '(custom-enabled-themes (quote (dracula)))
  '(custom-safe-themes
    (quote
     ("aaffceb9b0f539b6ad6becb8e96a04f2140c8faa1de8039a343a4f1e009174fb" default)))
+ '(hl-sexp-background-colors (quote ("gray1" "gray20")))
+ '(hl-sexp-colors nil)
  '(love-exe "/Applications/love.app/Contents/MacOS/love")
  '(miracle-always-pretty-print t)
  '(miracle-custom-eval-wrappers nil)
@@ -37,7 +42,12 @@
  '(ns-right-alternate-modifier (quote alt))
  '(package-selected-packages
    (quote
-    (monroe dracula-theme omnisharp csharp-mode lua-mode multiple-cursors multi-line inf-clojure avy flycheck tide exec-path-from-shell paredit-everywhere paredit highlight-symbol helm-projectile cider auto-indent-mode auto-auto-indent))))
+    (projectile helm-ag company-anaconda anaconda-mode eglot lsp-mode helm-swoop helm-company company monroe dracula-theme omnisharp csharp-mode lua-mode multiple-cursors multi-line inf-clojure avy flycheck tide exec-path-from-shell paredit-everywhere paredit highlight-symbol helm-projectile cider auto-indent-mode auto-auto-indent)))
+ '(safe-local-variable-values
+   (quote
+    ((eval setq byte-compile-not-obsolete-vars
+           (quote
+            (display-buffer-function)))))))
 (custom-set-faces
  ;; custom-set-faces was added by Custom.
  ;; If you edit it by hand, you could mess it up, so be careful.

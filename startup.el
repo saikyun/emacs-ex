@@ -21,6 +21,8 @@
 (define-key key-translation-map [?\M-x] [?\M-u])
 (define-key key-translation-map [?\M-u] [?\M-x])
 
+(setq ring-bell-function 'ignore)
+
 (defalias 'yes-or-no-p 'y-or-n-p)
 
 (setq
@@ -51,6 +53,18 @@
 (auto-indent-global-mode)
 
 (global-linum-mode)
+
+(require 'highlight-sexps)
+
+(defun auto-highlight-sexps-on ()
+  "Turn on highlight-sexps minor mode."
+  (interactive)
+  (unless (minibufferp)
+    (highlight-sexps-mode 1)))
+
+(define-globalized-minor-mode highlight-sexps-global-mode highlight-sexps-mode auto-highlight-sexps-on)
+
+(highlight-sexps-global-mode)
 
 (require 'lua-mode)
 (require 'love-minor-mode)
@@ -97,7 +111,45 @@
 
 (setq projectile-switch-project-action #'helm-projectile)
 
-(add-to-list 'auto-mode-alist '("\\.cljs\\'" . clojure-mode))
+(require 'helm-swoop)
+(require 'helm-ag)
+(require 'projectile)
+
+(defun helm-ag-swoop (&optional $query)
+  "Open buffers before `helm-multi-swoop-all'"
+  (interactive)
+  (setq helm-multi-swoop-query (helm-multi-swoop--get-query $query))
+  (let* ((dir-path (projectile-project-root))
+         (ag-cmd (format "ag -l '%s' %s"
+                         (or $query "")
+                         dir-path))
+         (file-paths (split-string
+                      (shell-command-to-string ag-cmd))))
+    ;; helm-swoop only operates on buffer content -- so prepare some
+    (dolist (file file-paths)
+      (find-file-noselect file))
+    (helm-multi-swoop--exec nil
+                            :$query helm-multi-swoop-query
+                            :$buflist (helm-multi-swoop--get-buffer-list))))
+
+(defun helm-ag-swoop-clojure (&optional $query)
+  "Open buffers before `helm-multi-swoop-all'"
+  (interactive)
+  (setq helm-multi-swoop-query (helm-multi-swoop--get-query $query))
+  (let* ((dir-path (projectile-project-root))
+         (ag-cmd (format "ag -G '\.(clj|cljs|cljc)$' -l '%s' %s"
+                         (or $query "")
+                         dir-path))
+         (file-paths (split-string
+                      (shell-command-to-string ag-cmd))))
+    ;; helm-swoop only operates on buffer content -- so prepare some
+    (dolist (file file-paths)
+      (find-file-noselect file))
+    (helm-multi-swoop--exec nil
+                            :$query helm-multi-swoop-query
+                            :$buflist (helm-multi-swoop--get-buffer-list))))
+
+(add-to-list 'auto-mode-alist '("\\.cljs\\'" . clojurescript-mode))
 (add-to-list 'auto-mode-alist '("\\.clj\\'" . clojure-mode))
 (add-hook 'clojure-mode 'paredit-mode)
 
@@ -121,6 +173,7 @@
 (require 'paredit)
 (define-key paredit-mode-map (kbd "C-<backspace>") 'paredit-backward-kill-word)
 (define-key paredit-mode-map (kbd "A-<backspace>") 'paredit-backward-kill-word)
+(define-key paredit-mode-map (kbd "A-<delete>") 'paredit-forward-kill-word)
 
 (define-key paredit-mode-map (kbd "C-M-ä") 'kill-sexp)
 (define-key paredit-mode-map (kbd "C-M-å") 'backward-kill-sexp)
@@ -162,214 +215,215 @@
 
 (require 'inf-clojure)
 
-(require 'miracle)
-(add-hook 'clojure-mode-hook 'clojure-enable-miracle)
-(add-hook 'miracle-mode-hook 'paredit-mode)
+  (require 'miracle)
+  (add-hook 'clojure-mode-hook 'clojure-enable-miracle)
+  (add-hook 'miracle-mode-hook 'paredit-mode)
 
 
-(defcustom arcadia-repl-port 37220
-  "Port to connect to Arcadia repl.")
+  (defcustom arcadia-repl-port 37220
+    "Port to connect to Arcadia repl.")
 
-(defun arcadia-repl ()
-  "Attempts to connect to a running Arcadia instance over the Arcadia socket-repl."
-  (interactive)
-  (inf-clojure-connect "localhost" arcadia-repl-port))
+  (defun arcadia-repl ()
+    "Attempts to connect to a running Arcadia instance over the Arcadia socket-repl."
+    (interactive)
+    (inf-clojure-connect "localhost" arcadia-repl-port))
 
 
-;; inf-clojure's argslists eldoc support spams the Arcadia repl
-;; and slows down emacs. This (removable) empty wrapper function is a
-;; quick kludge to disable it.
-(defun arcadia-inf-clojure-eldoc-setup-wrapper (orig-fun &rest args))
+  ;; inf-clojure's argslists eldoc support spams the Arcadia repl
+  ;; and slows down emacs. This (removable) empty wrapper function is a
+  ;; quick kludge to disable it.
+  (defun arcadia-inf-clojure-eldoc-setup-wrapper (orig-fun &rest args))
 
-;; Temporary hack that disables eldoc for inf-clojure.
-(advice-add 'inf-clojure-eldoc-setup :around #'arcadia-inf-clojure-eldoc-setup-wrapper)
+  ;; Temporary hack that disables eldoc for inf-clojure.
+  (advice-add 'inf-clojure-eldoc-setup :around #'arcadia-inf-clojure-eldoc-setup-wrapper)
 
-(setq inf-clojure-repl-type 'clojure)
+  (setq inf-clojure-repl-type 'clojure)
 
-(defun inf-clojure-change-to-ns (nsn)
-  (interactive "sNamespace to go to: ")
-  (inf-clojure--process-response
-   (concat "(do (if-not (find-ns '" nsn ") (try (require '" nsn " :reload) (catch Exception e (ns " nsn " )))) (in-ns '" nsn "))")
-   (inf-clojure-proc)))
+  (defun inf-clojure-change-to-ns (nsn)
+    (interactive "sNamespace to go to: ")
+    (inf-clojure--process-response
+     (concat "(do (if-not (find-ns '" nsn ") (try (require '" nsn " :reload) (catch Exception e (ns " nsn " )))) (in-ns '" nsn "))")
+     (inf-clojure-proc)))
 
-(defun inf-clojure-eval-in-ns (nsn command)
-  (interactive "sNamespace to go to: \nsCommand: ")
-  (inf-clojure--process-response
-   (concat "(do (if-not (find-ns '" nsn ") (try (require '" nsn " :reload) (catch Exception e (ns " nsn " )))) (in-ns '" nsn ")" command ")")
-   (inf-clojure-proc)))
+  (defun inf-clojure-eval-in-ns (nsn command)
+    (interactive "sNamespace to go to: \nsCommand: ")
+    (inf-clojure--process-response
+     (concat "(do (if-not (find-ns '" nsn ") (try (require '" nsn " :reload) (catch Exception e (ns " nsn " )))) (in-ns '" nsn ")" command ")")
+     (inf-clojure-proc)))
 
-(defun inf-clojure-eval-in-ns-of-current-file (command)
-  (interactive "sCommand: ")
-  (if-let ((ns (clojure-find-ns)))
-      (inf-clojure-eval-in-ns ns command)
-    (inf-clojure--process-response command (inf-clojure-proc))))
+  (defun inf-clojure-eval-in-ns-of-current-file (command)
+    (interactive "sCommand: ")
+    (if-let ((ns (clojure-find-ns)))
+        (inf-clojure-eval-in-ns ns command)
+      (inf-clojure--process-response command (inf-clojure-proc))))
 
-(defun inf-clojure-eval-last-sexp-in-ns-of-current-file ()
-  (interactive)
-  (if (not (equal (buffer-name (current-buffer)) inf-clojure-buffer))
-      (inf-clojure-set-ns nil))
-  (inf-clojure-eval-last-sexp))
+  (defun inf-clojure-eval-last-sexp-in-ns-of-current-file ()
+    (interactive)
+    (if (not (equal (buffer-name (current-buffer)) inf-clojure-buffer))
+        (inf-clojure-set-ns nil))
+    (inf-clojure-eval-last-sexp))
 
-(defun go-to-csharp-definition ()
-  "Go to the definition of a C# class from a clj-file."
-  (interactive)
-  (let ((pos (- (point) (line-beginning-position)))
-        (beg (progn (re-search-forward "[[:space:]]")
-                    (match-beginning 0)))
-        (end (progn (backward-char)
-                    (re-search-backward "[[:space:]]")
-                    (match-end 0)))
-                                        ;(beg (line-beginning-position))
-                                        ;(end (line-end-position))
-        )
-    (copy-region-as-kill beg end)
-    (find-file-other-window (concat
-                             (cdr (assoc :project-root omnisharp--server-info))
-                             "/temp-file.cs"))
-    (erase-buffer)
-    (let ((buffer-name (buffer-name)))
-      (insert "using UnityEngine;
+  (defun go-to-csharp-definition ()
+    "Go to the definition of a C# class from a clj-file."
+    (interactive)
+    (let ((pos (- (point) (line-beginning-position)))
+          (beg (progn (re-search-forward "[[:space:]]")
+                      (match-beginning 0)))
+          (end (progn (backward-char)
+                      (re-search-backward "[[:space:]]")
+                      (match-end 0)))
+                                          ;(beg (line-beginning-position))
+                                          ;(end (line-end-position))
+          )
+      (copy-region-as-kill beg end)
+      (find-file-other-window (concat
+                               (cdr (assoc :project-root omnisharp--server-info))
+                               "/temp-file.cs"))
+      (erase-buffer)
+      (let ((buffer-name (buffer-name)))
+        (insert "using UnityEngine;
 
-public class Lul {
-")
-      (yank)
-      (insert "
-}")
-      (previous-line)
-      (end-of-line)
-      (backward-char)
-      (omnisharp-go-to-definition))))
+  public class Lul {
+  ")
+        (yank)
+        (insert "
+  }")
+        (previous-line)
+        (end-of-line)
+        (backward-char)
+        (omnisharp-go-to-definition))))
 
-(defvar get-interns-form
-  "(defn ns-interns-of-aliases
-[ns]
-(->> ns
-ns-aliases
-(map #(vector (first %) (keys (ns-interns (second %)))))
-(into {})))
+  (defvar get-interns-form
+    "(defn ns-interns-of-aliases
+  [ns]
+  (->> ns
+  ns-aliases
+  (map #(vector (first %) (keys (ns-interns (second %)))))
+  (into {})))
 
-(defn keys-to-prefixes
-[coll]
-(->> coll
-(map (fn [[k vs]] (map #(str k \"/\" %) vs)))
-flatten
-(map symbol)))")
+  (defn keys-to-prefixes
+  [coll]
+  (->> coll
+  (map (fn [[k vs]] (map #(str k \"/\" %) vs)))
+  flatten
+  (map symbol)))")
 
-(defvar get-all-vars-form
-  "(defn get-all-vars [ns]
-  (map str (concat (keys (ns-map ns))
-          (keys-to-prefixes (ns-interns-of-aliases ns)))))")
+  (defvar get-all-vars-form
+    "(defn get-all-vars [ns]
+    (map str (concat (keys (ns-map ns))
+            (keys-to-prefixes (ns-interns-of-aliases ns)))))")
 
-(defun arcadia-get-public-members ()
-  "Get the public members of a type."
-  (interactive)
-  (let* ((pos (point))
-         (beg (progn (re-search-backward "(")
-                     (match-beginning 0)))
-         (end (progn (re-search-forward ")")
-                     (match-end 0)))
-         (identifier (buffer-substring beg end))
-         (names (cdr (car (read-from-string identifier)))))
-    (print names)
-    (print (string-join (mapcar 'prin1-to-string names) " '"))
-    (let ((res (car (read-from-string (inf-clojure--process-response
-                                       (concat "(get-names (get-public-members (get-type-of-nested-member "
-                                               (string-join (mapcar 'prin1-to-string names) " '")
-                                               ")))")
-                                       (inf-clojure-proc))))))
-      (goto-char pos)
-      (print res)
-      res)))
+  (defun arcadia-get-public-members ()
+    "Get the public members of a type."
+    (interactive)
+    (let* ((pos (point))
+           (beg (progn (re-search-backward "(")
+                       (match-beginning 0)))
+           (end (progn (re-search-forward ")")
+                       (match-end 0)))
+           (identifier (buffer-substring beg end))
+           (names (cdr (car (read-from-string identifier)))))
+      (print names)
+      (print (string-join (mapcar 'prin1-to-string names) " '"))
+      (let ((res (car (read-from-string (inf-clojure--process-response
+                                         (concat "(get-names (get-public-members (get-type-of-nested-member "
+                                                 (string-join (mapcar 'prin1-to-string names) " '")
+                                                 ")))")
+                                         (inf-clojure-proc))))))
+        (goto-char pos)
+        (print res)
+        res)))
 
-(defun helm-arcadia-show-members ()
-  (interactive)
-  (let ((chosen (helm :sources (helm-build-sync-source "test"
-                                 :candidates (arcadia-get-public-members))
-                      :buffer "*helm my command*")))
-    (when chosen
-      (insert " ")
-      (insert chosen))))
+  (defun helm-arcadia-show-members ()
+    (interactive)
+    (let ((chosen (helm :sources (helm-build-sync-source "test"
+                                   :candidates (arcadia-get-public-members))
+                        :buffer "*helm my command*")))
+      (when chosen
+        (insert " ")
+        (insert chosen))))
 
-(defun inf-clojure-vars ()
-  "Gets a list of the functions in the current namespace."
-  (interactive)
-  (let ((res (car (read-from-string (inf-clojure-eval-in-ns-of-current-file
-                                     (concat "(do " get-all-vars-form " (get-all-vars *ns*))"))))))
-    (sort (mapcar 'prin1-to-string res) 'string<)))
+  (defun inf-clojure-vars ()
+    "Gets a list of the functions in the current namespace."
+    (interactive)
+    (let ((res (car (read-from-string (inf-clojure-eval-in-ns-of-current-file
+                                       (concat "(do " get-all-vars-form " (get-all-vars *ns*))"))))))
+      (sort (mapcar 'prin1-to-string res) 'string<)))
 
-(defun helm-arcadia-vars ()
-  "List all vars."
-  (interactive)
-  (let ((chosen (helm :sources (helm-build-sync-source "Functions in namespace"
-                                 :candidates (inf-clojure-vars))
-                      :buffer "*helm my command*")))
-    (when chosen
-      (insert chosen))))
-
-(defun helm-arcadia-completion-at-point ()
-  "Gets the last word and starts helm using the word as input, and all the functions available in the current inf-clojure process."
-  (interactive)
-  (let* ((pos (point))
-         (beg (progn (re-search-backward "[[:space:]]\\|\n\\|(\\|^")
-                     (forward-char)
-                     (match-end 0)))
-         (end (progn (re-search-forward "[[:space:]]\\|\n\\|)\\|$")
-                     (backward-char)
-                     (match-beginning 0)))
-         (identifier (buffer-substring beg end))
-         (parsed-id (car (read-from-string identifier))))
-
+  (defun helm-arcadia-vars ()
+    "List all vars."
+    (interactive)
     (let ((chosen (helm :sources (helm-build-sync-source "Functions in namespace"
                                    :candidates (inf-clojure-vars))
-                        :buffer "*helm my command*"
-                        :input (prin1-to-string parsed-id))))
+                        :buffer "*helm my command*")))
       (when chosen
-        (kill-region beg end)
-        (insert chosen)))))
+        (insert chosen))))
 
-(defun inf-clojure-source-of-function (fun)
-  "Gets the source for a function."
-  (interactive "sSource of clojure function: ")
-  (let ((res (inf-clojure-eval-in-ns-of-current-file
-              (concat "(do (require '[clojure.repl :as temp-clojure-repl-ns]) (temp-clojure-repl-ns/source "
-                      fun
-                      "))"))))
-    (switch-to-buffer-other-window "*inf-clojure-source*")
-    (erase-buffer)
-    (clojure-mode)
-    (insert res)
-    (goto-char 0)
-    (while (re-search-forward "" nil t)
-      (replace-match ""))))
+  (defun helm-arcadia-completion-at-point ()
+    "Gets the last word and starts helm using the word as input, and all the functions available in the current inf-clojure process."
+    (interactive)
+    (let* ((pos (point))
+           (beg (progn (re-search-backward "[[:space:]]\\|\n\\|(\\|^")
+                       (forward-char)
+                       (match-end 0)))
+           (end (progn (re-search-forward "[[:space:]]\\|\n\\|)\\|$")
+                       (backward-char)
+                       (match-beginning 0)))
+           (identifier (buffer-substring beg end))
+           (parsed-id (car (read-from-string identifier))))
 
-(defun helm-inf-clojure-source-of-function ()
-  (interactive)
-  (let ((chosen (helm :sources (helm-build-sync-source "Functions in namespace"
-                                 :candidates (inf-clojure-get-available-functions))
-                      :buffer "*helm my command*")))
-    (when chosen
-      (inf-clojure-source-of-function chosen))))
+      (let ((chosen (helm :sources (helm-build-sync-source "Functions in namespace"
+                                     :candidates (inf-clojure-vars))
+                          :buffer "*helm my command*"
+                          :input (prin1-to-string parsed-id))))
+        (when chosen
+          (kill-region beg end)
+          (insert chosen)))))
 
-(defun inf-clojure-source-of-function-at-point ()
-  (interactive)
-  (let* ((pos (point))
-         (beg (progn (re-search-backward "[[:space:]]\\|\n\\|(")
-                     (forward-char)
-                     (match-end 0)))
-         (end (progn (re-search-forward "[[:space:]]\\|\n\\|)")
-                     (backward-char)
-                     (match-beginning 0)))
-         (identifier (buffer-substring beg end))
-         (parsed-id (car (read-from-string identifier))))
-    (inf-clojure-source-of-function identifier)))
+  (defun inf-clojure-source-of-function (fun)
+    "Gets the source for a function."
+    (interactive "sSource of clojure function: ")
+    (let ((res (inf-clojure-eval-in-ns-of-current-file
+                (concat "(do (require '[clojure.repl :as temp-clojure-repl-ns]) (temp-clojure-repl-ns/source "
+                        fun
+                        "))"))))
+      (switch-to-buffer-other-window "*inf-clojure-source*")
+      (erase-buffer)
+      (clojure-mode)
+      (insert res)
+      (goto-char 0)
+      (while (re-search-forward "
+" nil t)
+        (replace-match ""))))
 
-;; (eval-after-load 'clojure-mode
-;;   '(progn
-;;      (define-key clojure-mode-map (kbd "<tab>") 'helm-arcadia-completion-at-point)
-;;      (define-key clojure-mode-map (kbd "M-.") 'inf-clojure-source-of-function-at-point)
+  (defun helm-inf-clojure-source-of-function ()
+    (interactive)
+    (let ((chosen (helm :sources (helm-build-sync-source "Functions in namespace"
+                                   :candidates (inf-clojure-get-available-functions))
+                        :buffer "*helm my command*")))
+      (when chosen
+        (inf-clojure-source-of-function chosen))))
 
-;;      (define-key clojure-mode-map (kbd "C-x C-e") 'inf-clojure-eval-last-sexp-in-ns-of-current-file)
-;;      (define-key clojure-mode-map (kbd "C-M-x") 'inf-clojure-eval-defun-in-ns-of-current-file)))
+  (defun inf-clojure-source-of-function-at-point ()
+    (interactive)
+    (let* ((pos (point))
+           (beg (progn (re-search-backward "[[:space:]]\\|\n\\|(")
+                       (forward-char)
+                       (match-end 0)))
+           (end (progn (re-search-forward "[[:space:]]\\|\n\\|)")
+                       (backward-char)
+                       (match-beginning 0)))
+           (identifier (buffer-substring beg end))
+           (parsed-id (car (read-from-string identifier))))
+      (inf-clojure-source-of-function identifier)))
+
+  ;; (eval-after-load 'clojure-mode
+  ;;   '(progn
+  ;;      (define-key clojure-mode-map (kbd "<tab>") 'helm-arcadia-completion-at-point)
+  ;;      (define-key clojure-mode-map (kbd "M-.") 'inf-clojure-source-of-function-at-point)
+
+  ;;      (define-key clojure-mode-map (kbd "C-x C-e") 'inf-clojure-eval-last-sexp-in-ns-of-current-file)
+  ;;      (define-key clojure-mode-map (kbd "C-M-x") 'inf-clojure-eval-defun-in-ns-of-current-file)))
 
 (require 'clojure-mode)
 
@@ -420,6 +474,8 @@ flatten
 (require 'multi-line)
 (global-set-key (kbd "C-c d") 'multi-line)
 
+(add-hook 'python-mode-hook 'anaconda-mode)
+
 (add-hook 'lisp-mode-hook 'enable-paredit-mode)
 (add-hook 'emacs-lisp-mode-hook 'enable-paredit-mode)
 
@@ -447,14 +503,64 @@ flatten
 
   (global-set-key (kbd "<A-left>") 'backward-word)
   (global-set-key (kbd "<A-right>") 'forward-word)
-  (global-set-key (kbd "<A-backspace>") 'backward-kill-word)
-  (global-set-key (kbd "<A-kp-delete>") 'kill-word)
+(global-set-key (kbd "<A-backspace>") 'backward-kill-word)
+(global-set-key (kbd "<A-kp-delete>") 'kill-word)
+(global-set-key (kbd "<A-delete>") 'kill-word)
 
 (global-set-key (kbd "C-c C-c") 'eval-defun)
 
 (global-set-key (kbd "M-x") #'helm-M-x)
 (global-set-key (kbd "C-x r b") #'helm-filtered-bookmarks)
 (global-set-key (kbd "C-x C-f") #'helm-find-files)
+
+(require 'helm-swoop)
+
+;; Change the keybinds to whatever you like :)
+(global-set-key (kbd "M-i") 'helm-swoop)
+(global-set-key (kbd "M-I") 'helm-swoop-back-to-last-point)
+(global-set-key (kbd "C-c M-i") 'helm-multi-swoop)
+(global-set-key (kbd "C-x M-i") 'helm-multi-swoop-all)
+
+;; When doing isearch, hand the word over to helm-swoop
+(define-key isearch-mode-map (kbd "M-i") 'helm-swoop-from-isearch)
+;; From helm-swoop to helm-multi-swoop-all
+(define-key helm-swoop-map (kbd "M-i") 'helm-multi-swoop-all-from-helm-swoop)
+;; When doing evil-search, hand the word over to helm-swoop
+;; (define-key evil-motion-state-map (kbd "M-i") 'helm-swoop-from-evil-search)
+
+;; Instead of helm-multi-swoop-all, you can also use helm-multi-swoop-current-mode
+(define-key helm-swoop-map (kbd "M-m") 'helm-multi-swoop-current-mode-from-helm-swoop)
+
+;; Move up and down like isearch
+(define-key helm-swoop-map (kbd "C-r") 'helm-previous-line)
+(define-key helm-swoop-map (kbd "C-s") 'helm-next-line)
+(define-key helm-multi-swoop-map (kbd "C-r") 'helm-previous-line)
+(define-key helm-multi-swoop-map (kbd "C-s") 'helm-next-line)
+
+;; Save buffer when helm-multi-swoop-edit complete
+(setq helm-multi-swoop-edit-save t)
+
+;; If this value is t, split window inside the current window
+(setq helm-swoop-split-with-multiple-windows nil)
+
+;; Split direcion. 'split-window-vertically or 'split-window-horizontally
+(setq helm-swoop-split-direction 'split-window-vertically)
+
+;; If nil, you can slightly boost invoke speed in exchange for text color
+(setq helm-swoop-speed-or-color nil)
+
+;; ;; Go to the opposite side of line from the end or beginning of line
+(setq helm-swoop-move-to-line-cycle t)
+
+;; Optional face for line numbers
+;; Face name is `helm-swoop-line-number-face`
+(setq helm-swoop-use-line-number-face t)
+
+;; If you prefer fuzzy matching, st
+(setq helm-swoop-use-fuzzy-match nil)
+
+;; If you would like to use migemo, enable helm's migemo feature
+;; (helm-migemo-mode 1)
 
 (require 'visual-basic-mode)
 
@@ -474,3 +580,63 @@ flatten
   (interactive)
   (message (buffer-file-name))
   (kill-new (file-truename buffer-file-name)))
+
+;;; -*- lexical-binding: t -*-
+(require 'company)
+
+(with-eval-after-load "company"
+  ;; everywhere
+  (global-company-mode)
+  ;;
+  (global-set-key (kbd "<tab>") #'helm-company)
+  (global-set-key (kbd "M-TAB") #'company-complete)
+  ;; for once have escape key cancel things in emacs...
+  (define-key company-active-map (kbd "ESC") 'company-abort))
+
+(with-eval-after-load "miracle"
+
+  (add-hook 'clojure-mode-hook 'clojure-enable-miracle)
+
+
+  (defun miracle-eval-string (s callback)
+    (miracle-send-eval-string
+     s
+     (lambda (response)
+       (miracle-dbind-response response (id value status)
+                               (when (member "done" status)
+                                 (remhash id miracle-requests))
+                               (when value
+                                 (funcall callback nil value))))))
+
+  (defun miracle-get-completions (word callback)
+    (interactive)
+    (miracle-eval-string
+     (format "(do (require '[%s]) (%s/completions \"%s\"))"
+             "complete.core" "complete.core" word)
+     (lambda (err s)
+       (progn
+         ;; XXX
+         (message (format "received str: %s" s))
+         (message (format "err: %s" err))
+         (when (not err)
+           (funcall callback (read-from-whole-string s)))))))
+
+  (defun company-miracle (command &optional arg &rest ignored)
+    (interactive (list 'interactive))
+    (cl-case command
+      (interactive (company-begin-backend 'company-miracle))
+      (prefix (and (or (eq major-mode 'clojurec-mode)
+                       (eq major-mode 'clojure-mode)
+                       (eq major-mode 'miracle-mode))
+                   (get-buffer "*miracle-connection*")
+                   (substring-no-properties (company-grab-symbol))))
+      (candidates (lexical-let ((arg (substring-no-properties arg)))
+                    (cons :async (lambda (callback)
+                                   (miracle-get-completions arg callback)))))))
+
+  ;; XXX: problems w/o the following when invoking company-grab-symbol
+  (setq cider-mode nil)
+
+  (add-to-list 'company-backends 'company-miracle)
+
+  )

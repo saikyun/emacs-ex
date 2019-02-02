@@ -42,10 +42,6 @@
 ;;; Code:
 
 (progn
-  (unless (fboundp 'helm-mode)
-    (ido-mode t)
-    (setq ido-enable-flex-matching t))
-  
   (when (fboundp 'tool-bar-mode)
     (tool-bar-mode -1))
   (when (fboundp 'scroll-bar-mode)
@@ -59,8 +55,6 @@
   (require 'uniquify)
   (setq uniquify-buffer-name-style 'forward)
   
-  (global-set-key (kbd "M-/") 'hippie-expand)
-  (global-set-key (kbd "C-x C-b") 'ibuffer)
   (global-set-key (kbd "M-z") 'zap-up-to-char)
   
   (global-set-key (kbd "C-s") 'isearch-forward-regexp)
@@ -68,8 +62,7 @@
   (global-set-key (kbd "C-M-s") 'isearch-forward)
   (global-set-key (kbd "C-M-r") 'isearch-backward)
   
-  (show-paren-mode 1)
-  (setq-default indent-tabs-mode nil)
+  ;;  (show-paren-mode 1)
   (setq save-interprogram-paste-before-kill t
         apropos-do-all t
         mouse-yank-at-point t

@@ -36,6 +36,8 @@ This is my file for configurating emacs. There are many like it, but this one is
   (define-key key-translation-map [?\M-x] [?\M-u])
   (define-key key-translation-map [?\M-u] [?\M-x])
 
+  (setq ring-bell-function 'ignore)
+
   (defalias 'yes-or-no-p 'y-or-n-p)
 #+END_SRC
 
@@ -80,6 +82,18 @@ This is my file for configurating emacs. There are many like it, but this one is
   (auto-indent-global-mode)
 
   (global-linum-mode)
+
+  (require 'highlight-sexps)
+
+  (defun auto-highlight-sexps-on ()
+    "Turn on highlight-sexps minor mode."
+    (interactive)
+    (unless (minibufferp)
+      (highlight-sexps-mode 1)))
+
+  (define-globalized-minor-mode highlight-sexps-global-mode highlight-sexps-mode auto-highlight-sexps-on)
+
+  (highlight-sexps-global-mode)
 #+end_src
 
 #+RESULTS:
@@ -159,13 +173,53 @@ This is my file for configurating emacs. There are many like it, but this one is
   (setq projectile-switch-project-action #'helm-projectile)
 #+end_src
 
+#+BEGIN_SRC emacs-lisp
+  (require 'helm-swoop)
+  (require 'helm-ag)
+  (require 'projectile)
+
+  (defun helm-ag-swoop (&optional $query)
+    "Open buffers before `helm-multi-swoop-all'"
+    (interactive)
+    (setq helm-multi-swoop-query (helm-multi-swoop--get-query $query))
+    (let* ((dir-path (projectile-project-root))
+           (ag-cmd (format "ag -l '%s' %s"
+                           (or $query "")
+                           dir-path))
+           (file-paths (split-string
+                        (shell-command-to-string ag-cmd))))
+      ;; helm-swoop only operates on buffer content -- so prepare some
+      (dolist (file file-paths)
+        (find-file-noselect file))
+      (helm-multi-swoop--exec nil
+                              :$query helm-multi-swoop-query
+                              :$buflist (helm-multi-swoop--get-buffer-list))))
+
+  (defun helm-ag-swoop-clojure (&optional $query)
+    "Open buffers before `helm-multi-swoop-all'"
+    (interactive)
+    (setq helm-multi-swoop-query (helm-multi-swoop--get-query $query))
+    (let* ((dir-path (projectile-project-root))
+           (ag-cmd (format "ag -G '\.(clj|cljs|cljc)$' -l '%s' %s"
+                           (or $query "")
+                           dir-path))
+           (file-paths (split-string
+                        (shell-command-to-string ag-cmd))))
+      ;; helm-swoop only operates on buffer content -- so prepare some
+      (dolist (file file-paths)
+        (find-file-noselect file))
+      (helm-multi-swoop--exec nil
+                              :$query helm-multi-swoop-query
+                              :$buflist (helm-multi-swoop--get-buffer-list))))
+#+END_SRC
+
 #+RESULTS:
-: helm-projectile
+: helm-ag-swoop-clojure
 
 *** clojure and cider
 **** Clojure
 #+BEGIN_SRC emacs-lisp
-  (add-to-list 'auto-mode-alist '("\\.cljs\\'" . clojure-mode))
+  (add-to-list 'auto-mode-alist '("\\.cljs\\'" . clojurescript-mode))
   (add-to-list 'auto-mode-alist '("\\.clj\\'" . clojure-mode))
   (add-hook 'clojure-mode 'paredit-mode)
 #+END_SRC
@@ -207,6 +261,7 @@ This is my file for configurating emacs. There are many like it, but this one is
   (require 'paredit)
   (define-key paredit-mode-map (kbd "C-<backspace>") 'paredit-backward-kill-word)
   (define-key paredit-mode-map (kbd "A-<backspace>") 'paredit-backward-kill-word)
+  (define-key paredit-mode-map (kbd "A-<delete>") 'paredit-forward-kill-word)
 
   (define-key paredit-mode-map (kbd "C-M-ä") 'kill-sexp)
   (define-key paredit-mode-map (kbd "C-M-å") 'backward-kill-sexp)
@@ -440,7 +495,8 @@ This is my file for configurating emacs. There are many like it, but this one is
       (clojure-mode)
       (insert res)
       (goto-char 0)
-      (while (re-search-forward "" nil t)
+      (while (re-search-forward "
+" nil t)
         (replace-match ""))))
 
   (defun helm-inf-clojure-source-of-function ()
@@ -536,6 +592,13 @@ This is my file for configurating emacs. There are many like it, but this one is
 
 #+RESULTS:
 : multi-line
+*** python
+#+BEGIN_SRC emacs-lisp
+  (add-hook 'python-mode-hook 'anaconda-mode)
+#+END_SRC
+
+#+RESULTS:
+| anaconda-mode | multi-line-python-mode-hook |
 
 ** Lisp-modes (bl.a. starta paredit-mode)
 #+BEGIN_SRC emacs-lisp
@@ -575,12 +638,14 @@ This is my file for configurating emacs. There are many like it, but this one is
 : show-file-name
 *** Hopp-hax
 #+BEGIN_SRC emacs-lisp
-(global-set-key (kbd "<M-delete>") 'kill-word)
+  (global-set-key (kbd "<M-delete>") 'kill-word)
 
-  (global-set-key (kbd "<A-left>") 'backward-word)
-  (global-set-key (kbd "<A-right>") 'forward-word)
+    (global-set-key (kbd "<A-left>") 'backward-word)
+    (global-set-key (kbd "<A-right>") 'forward-word)
   (global-set-key (kbd "<A-backspace>") 'backward-kill-word)
   (global-set-key (kbd "<A-kp-delete>") 'kill-word)
+  (global-set-key (kbd "<A-delete>") 'kill-word)
+
 #+END_SRC
 
 #+RESULTS:
@@ -599,11 +664,60 @@ This is my file for configurating emacs. There are many like it, but this one is
   (global-set-key (kbd "M-x") #'helm-M-x)
   (global-set-key (kbd "C-x r b") #'helm-filtered-bookmarks)
   (global-set-key (kbd "C-x C-f") #'helm-find-files)
+
+  (require 'helm-swoop)
+
+  ;; Change the keybinds to whatever you like :)
+  (global-set-key (kbd "M-i") 'helm-swoop)
+  (global-set-key (kbd "M-I") 'helm-swoop-back-to-last-point)
+  (global-set-key (kbd "C-c M-i") 'helm-multi-swoop)
+  (global-set-key (kbd "C-x M-i") 'helm-multi-swoop-all)
+
+  ;; When doing isearch, hand the word over to helm-swoop
+  (define-key isearch-mode-map (kbd "M-i") 'helm-swoop-from-isearch)
+  ;; From helm-swoop to helm-multi-swoop-all
+  (define-key helm-swoop-map (kbd "M-i") 'helm-multi-swoop-all-from-helm-swoop)
+  ;; When doing evil-search, hand the word over to helm-swoop
+  ;; (define-key evil-motion-state-map (kbd "M-i") 'helm-swoop-from-evil-search)
+
+  ;; Instead of helm-multi-swoop-all, you can also use helm-multi-swoop-current-mode
+  (define-key helm-swoop-map (kbd "M-m") 'helm-multi-swoop-current-mode-from-helm-swoop)
+
+  ;; Move up and down like isearch
+  (define-key helm-swoop-map (kbd "C-r") 'helm-previous-line)
+  (define-key helm-swoop-map (kbd "C-s") 'helm-next-line)
+  (define-key helm-multi-swoop-map (kbd "C-r") 'helm-previous-line)
+  (define-key helm-multi-swoop-map (kbd "C-s") 'helm-next-line)
+
+  ;; Save buffer when helm-multi-swoop-edit complete
+  (setq helm-multi-swoop-edit-save t)
+
+  ;; If this value is t, split window inside the current window
+  (setq helm-swoop-split-with-multiple-windows nil)
+
+  ;; Split direcion. 'split-window-vertically or 'split-window-horizontally
+  (setq helm-swoop-split-direction 'split-window-vertically)
+
+  ;; If nil, you can slightly boost invoke speed in exchange for text color
+  (setq helm-swoop-speed-or-color nil)
+
+  ;; ;; Go to the opposite side of line from the end or beginning of line
+  (setq helm-swoop-move-to-line-cycle t)
+
+  ;; Optional face for line numbers
+  ;; Face name is `helm-swoop-line-number-face`
+  (setq helm-swoop-use-line-number-face t)
+
+  ;; If you prefer fuzzy matching, st
+  (setq helm-swoop-use-fuzzy-match nil)
+
+  ;; If you would like to use migemo, enable helm's migemo feature
+  ;; (helm-migemo-mode 1)
 #+END_SRC
 
 
 #+RESULTS:
-: helm-projectile
+: t
 
 *** VB
 #+BEGIN_SRC emacs-lisp
@@ -641,3 +755,69 @@ This is my file for configurating emacs. There are many like it, but this one is
 
 #+RESULTS:
 : show-file-name
+**** Miracle
+#+BEGIN_SRC emacs-lisp
+
+  ;;; -*- lexical-binding: t -*-
+  (require 'company)
+
+  (with-eval-after-load "company"
+    ;; everywhere
+    (global-company-mode)
+    ;;
+    (global-set-key (kbd "<tab>") #'helm-company)
+    (global-set-key (kbd "M-TAB") #'company-complete)
+    ;; for once have escape key cancel things in emacs...
+    (define-key company-active-map (kbd "ESC") 'company-abort))
+
+  (with-eval-after-load "miracle"
+
+    (add-hook 'clojure-mode-hook 'clojure-enable-miracle)
+
+
+    (defun miracle-eval-string (s callback)
+      (miracle-send-eval-string
+       s
+       (lambda (response)
+         (miracle-dbind-response response (id value status)
+                                 (when (member "done" status)
+                                   (remhash id miracle-requests))
+                                 (when value
+                                   (funcall callback nil value))))))
+
+    (defun miracle-get-completions (word callback)
+      (interactive)
+      (miracle-eval-string
+       (format "(do (require '[%s]) (%s/completions \"%s\"))"
+               "complete.core" "complete.core" word)
+       (lambda (err s)
+         (progn
+           ;; XXX
+           (message (format "received str: %s" s))
+           (message (format "err: %s" err))
+           (when (not err)
+             (funcall callback (read-from-whole-string s)))))))
+
+    (defun company-miracle (command &optional arg &rest ignored)
+      (interactive (list 'interactive))
+      (cl-case command
+        (interactive (company-begin-backend 'company-miracle))
+        (prefix (and (or (eq major-mode 'clojurec-mode)
+                         (eq major-mode 'clojure-mode)
+                         (eq major-mode 'miracle-mode))
+                     (get-buffer "*miracle-connection*")
+                     (substring-no-properties (company-grab-symbol))))
+        (candidates (lexical-let ((arg (substring-no-properties arg)))
+                      (cons :async (lambda (callback)
+                                     (miracle-get-completions arg callback)))))))
+
+    ;; XXX: problems w/o the following when invoking company-grab-symbol
+    (setq cider-mode nil)
+
+    (add-to-list 'company-backends 'company-miracle)
+
+    )
+#+END_SRC
+
+#+RESULTS:
+| company-tide | company-miracle | company-bbdb | company-eclim | company-semantic | company-clang | company-xcode | company-cmake | company-capf | company-files | (company-dabbrev-code company-gtags company-etags company-keywords) | company-oddmuse | company-dabbrev |
