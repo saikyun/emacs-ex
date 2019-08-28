@@ -125,14 +125,26 @@ over.")
       (dolist (ov overlays)
         (move-overlay ov 1 1)))))
 
+(defun hl-sexp-remove-overlays ()
+  (with-current-buffer (current-buffer)
+    (mapc 'delete-overlay hl-sexp-overlays)
+    (setq hl-sexp-overlays nil)))
+
+(defun hl-sexp-reset ()
+  (with-current-buffer (current-buffer)
+    (mapc 'delete-overlay hl-sexp-overlays)
+    (setq hl-sexp-overlays nil)
+    (hl-sexp-create-overlays)))
+
 ;;;###autoload
 (define-minor-mode highlight-sexps-mode
   "Minor mode to highlight an expanding set of surrounding s-expressions."
   nil " hl-s" nil
   (if highlight-sexps-mode
       (progn
-        (hl-sexp-create-overlays)
-        (add-hook 'post-command-hook 'hl-sexp-highlight nil t))
+	(hl-sexp-reset)
+        (add-hook 'before-revert-hook 'hl-sexp-remove-overlays)
+	(add-hook 'post-command-hook 'hl-sexp-highlight nil t))
     (mapc 'delete-overlay hl-sexp-overlays)
     (kill-local-variable 'hl-sexp-overlays)
     (kill-local-variable 'hl-sexp-last-point)
@@ -171,7 +183,9 @@ over.")
 
 (defun hl-sexp-start-of-sexp (pt)
   "Start of the s-expression surrounding PT."
-  (save-excursion (cadr (syntax-ppss pt))))
+  (condition-case nil
+      (save-excursion (cadr (syntax-ppss pt)))
+    (error nil)))
 
 (defun hl-sexp-end-of-sexp (pt)
   "End of s-expression that matches beginning point PT."
