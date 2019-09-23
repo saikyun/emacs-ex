@@ -12,6 +12,25 @@ This is my file for configurating emacs. There are many like it, but this one is
 **** DONE Fixa hotkeys
 *** DONE Gruppera koden
 *** DONE Fixa auto indent mode
+*** TODO Lägg in dessa som kommandon
+#+BEGIN_SRC sh :tangle no
+  lsof -i :4005 | bb -i '(let [[_ & vs] *in*, vs (map #(str/split % #" +") vs), vs (filter #(= (first %) "enginepro") vs), vs (map second vs)] (shell/sh "kill" "-9" (first vs)))'
+#+END_SRC
+
+#+BEGIN_SRC sh :tangle no
+  cd ~/jobb/ist/medgivande-api && yarn watch-ts
+
+  lsof -i :4005 | bb -i '(let [[_ & vs] *in*, vs (map #(str/split % #" +") vs), vs (filter #(= (first %) "enginepro") vs), vs (map second vs)] (shell/sh "kill" "-9" (first vs)))'
+  cd ~/jobb/ist/medgivande-api && yarn start-local
+
+  cd ~/jobb/ist/medgivande-portal && yarn start
+
+  openconnect sslvpn.ist.com
+
+#+END_SRC
+t
+#+RESULTS:
+
 * Koden
 ** Systemgrejer (t.ex. server-start och binda om C-x/C-u
 #+BEGIN_SRC emacs-lisp
@@ -30,6 +49,12 @@ This is my file for configurating emacs. There are many like it, but this one is
   (setenv "PATH" (concat (getenv "PATH") ";C:\\Users\\u045862\\AppData\\Roaming"))
   (add-to-list 'exec-path "C:/Users/u045862/AppData/Roaming")
 
+  ;; (keyboard-translate ?\C-u ?\C-x)
+  ;; (keyboard-translate ?\C-x ?\C-u)
+
+  ;; (define-key key-translation-map [?\M-u] [?\M-x])
+  ;; (define-key key-translation-map [?\M-x] [?\M-u])
+
   (keyboard-translate ?\C-x ?\C-u)
   (keyboard-translate ?\C-u ?\C-x)
 
@@ -40,6 +65,9 @@ This is my file for configurating emacs. There are many like it, but this one is
 
   (defalias 'yes-or-no-p 'y-or-n-p)
 #+END_SRC
+
+#+RESULTS:
+: yes-or-no-p
 
 *** Backups
 #+BEGIN_SRC emacs-lisp
@@ -72,28 +100,28 @@ This is my file for configurating emacs. There are many like it, but this one is
 
 ** Add scripts added without package.el.
 #+begin_src emacs-lisp
-  (add-to-list 'load-path "~/.emacs.d/scripts")
-  (let ((default-directory  "~/.emacs.d/scripts/"))
+    (add-to-list 'load-path "~/.emacs.d/scripts")
+    (let ((default-directory  "~/.emacs.d/scripts/"))
       (normal-top-level-add-subdirs-to-load-path))
 
-  (require 'better-defaults)
-  (require 'auto-indent-mode)
-
-  (auto-indent-global-mode)
+    (require 'better-defaults)
+    (require 'auto-indent-mode)
 
   (global-linum-mode)
 
-  (require 'highlight-sexps)
+    (require 'highlight-sexps)
 
-  (defun auto-highlight-sexps-on ()
-    "Turn on highlight-sexps minor mode."
-    (interactive)
-    (unless (minibufferp)
-      (highlight-sexps-mode 1)))
+  (defun paredit-expand ()
+      (interactive)
+      (paredit-backward-up)
+      (let ((start (point)))
+        (paredit-forward)
+        (let ((end (point)))
+          (goto-char start)
+          (set-mark end))))
 
-  (define-globalized-minor-mode highlight-sexps-global-mode highlight-sexps-mode auto-highlight-sexps-on)
-
-  (highlight-sexps-global-mode)
+    (when (require 'so-long nil :noerror)
+      (so-long-enable))
 #+end_src
 
 #+RESULTS:
@@ -104,7 +132,7 @@ This is my file for configurating emacs. There are many like it, but this one is
 *** lua
 #+BEGIN_SRC emacs-lisp
   (require 'lua-mode)
-  (require 'love-minor-mode)
+;;  (require 'love-minor-mode)
 
   (define-key lua-mode-map (kbd "C-c C-c") (lambda () (interactive) (compile "love .")))
   (add-hook 'lua-mode-hook
@@ -142,14 +170,26 @@ This is my file for configurating emacs. There are many like it, but this one is
     (setq flycheck-check-syntax-automatically '(save mode-enabled))
     (eldoc-mode +1)
     (tide-hl-identifier-mode +1))
+
   ;; formats the buffer before saving
-  (add-hook 'before-save-hook 'tide-format-before-save)
+  ;;(add-hook 'before-save-hook 'tide-format-before-save)
+  (require 'prettier-js)
+  (add-hook 'web-mode-hook 'prettier-js-mode)
 
   (add-hook 'typescript-mode-hook #'setup-tide-mode)
+
+  (require 'web-mode)
+  (add-to-list 'auto-mode-alist '("\\.tsx\\'" . web-mode))
+  (add-hook 'web-mode-hook
+            (lambda ()
+              (when (string-equal "tsx" (file-name-extension buffer-file-name))
+                (setup-tide-mode))))
+  ;; enable typescript-tslint checker
+;;  (flycheck-add-mode 'typescript-tslint 'web-mode)
 #+END_SRC
 
 #+RESULTS:
-| setup-tide-mode |
+| web-mode | typescript-mode |
 
 *** projectile
 #+BEGIN_SRC emacs-lisp
@@ -175,67 +215,79 @@ This is my file for configurating emacs. There are many like it, but this one is
 
 #+BEGIN_SRC emacs-lisp
   (require 'helm-swoop)
-  (require 'helm-ag)
-  (require 'projectile)
+    (require 'helm-ag)
+    (require 'projectile)
 
-  (defun helm-ag-swoop (&optional $query)
-    "Open buffers before `helm-multi-swoop-all'"
-    (interactive)
-    (setq helm-multi-swoop-query (helm-multi-swoop--get-query $query))
-    (let* ((dir-path (projectile-project-root))
-           (ag-cmd (format "ag -l '%s' %s"
-                           (or $query "")
-                           dir-path))
-           (file-paths (split-string
-                        (shell-command-to-string ag-cmd))))
-      ;; helm-swoop only operates on buffer content -- so prepare some
-      (dolist (file file-paths)
-        (find-file-noselect file))
-      (helm-multi-swoop--exec nil
-                              :$query helm-multi-swoop-query
-                              :$buflist (helm-multi-swoop--get-buffer-list))))
+    (defun helm-ag-swoop (&optional $query)
+      "Open buffers before `helm-multi-swoop-all'"
+      (interactive)
+      (setq helm-multi-swoop-query (helm-multi-swoop--get-query $query))
+      (let* ((dir-path (projectile-project-root))
+             (ag-cmd (format "ag -l '%s' %s"
+                             (or $query "")
+                             dir-path))
+             (file-paths (split-string
+                          (shell-command-to-string ag-cmd))))
+        ;; helm-swoop only operates on buffer content -- so prepare some
+        (dolist (file file-paths)
+          (find-file-noselect file))
+        (helm-multi-swoop--exec nil
+                                :$query helm-multi-swoop-query
+                                :$buflist (helm-multi-swoop--get-buffer-list))))
 
-  (defun helm-ag-swoop-clojure (&optional $query)
-    "Open buffers before `helm-multi-swoop-all'"
-    (interactive)
-    (setq helm-multi-swoop-query (helm-multi-swoop--get-query $query))
-    (let* ((dir-path (projectile-project-root))
-           (ag-cmd (format "ag -G '\.(clj|cljs|cljc)$' -l '%s' %s"
-                           (or $query "")
-                           dir-path))
-           (file-paths (split-string
-                        (shell-command-to-string ag-cmd))))
-      ;; helm-swoop only operates on buffer content -- so prepare some
-      (dolist (file file-paths)
-        (find-file-noselect file))
-      (helm-multi-swoop--exec nil
-                              :$query helm-multi-swoop-query
-                              :$buflist (helm-multi-swoop--get-buffer-list))))
+    (defun helm-ag-swoop-clojure (&optional $query)
+      "Open buffers before `helm-multi-swoop-all'"
+      (interactive)
+      (setq helm-multi-swoop-query (helm-multi-swoop--get-query $query))
+      (let* ((dir-path (projectile-project-root))
+             (ag-cmd (format "ag -G '\.(clj|cljs|cljc)$' -l '%s' %s"
+                             (or $query "")
+                             dir-path))
+             (file-paths (split-string
+                          (shell-command-to-string ag-cmd))))
+        ;; helm-swoop only operates on buffer content -- so prepare some
+        (dolist (file file-paths)
+          (find-file-noselect file))
+        (helm-multi-swoop--exec nil
+                                :$query helm-multi-swoop-query
+                                :$buflist (helm-multi-swoop--get-buffer-list))))
+
+  ;;  (setq projectile-indexing-method 'native)
 #+END_SRC
 
 #+RESULTS:
-: helm-ag-swoop-clojure
+: native
 
 *** clojure and cider
 **** Clojure
 #+BEGIN_SRC emacs-lisp
+  (require 'clojure-mode)
+  (require 'acrepl)
+
+  (require 'flycheck-clj-kondo)
+
   (add-to-list 'auto-mode-alist '("\\.cljs\\'" . clojurescript-mode))
   (add-to-list 'auto-mode-alist '("\\.clj\\'" . clojure-mode))
-  (add-hook 'clojure-mode 'paredit-mode)
+  (add-hook 'clojure-mode 'enable-paredit-mode)
+
+  (define-clojure-indent
+    (alet 'defun)
+    (mlet 'defun))
+
 #+END_SRC
 
 #+RESULTS:
-| paredit-mode |
+: defun
 
 **** Cider
 #+BEGIN_SRC emacs-lisp
-  (add-hook 'cider-repl-mode-hook 'enable-paredit-mode)
-  (add-hook 'clojure-mode-hook 'enable-paredit-mode)
+    (add-hook 'cider-repl-mode-hook 'enable-paredit-mode)
+    (add-hook 'clojure-mode-hook 'enable-paredit-mode)
 
-  (setq cider-repl-use-pretty-printing t)
-(require 'cider)
+    (setq cider-repl-use-pretty-printing t)
+  (require 'cider)
 
-  (define-key cider-repl-mode-map (kbd "RET") #'cider-repl-return) 
+  (define-key cider-repl-mode-map (kbd "RET") #'cider-repl-return)
   (define-key cider-repl-mode-map (kbd "C-<return>") #'cider-repl-newline-and-indent)
 #+END_SRC
 
@@ -258,56 +310,122 @@ This is my file for configurating emacs. There are many like it, but this one is
 
 *** paredit
 #+BEGIN_SRC emacs-lisp
-  (require 'paredit)
-  (define-key paredit-mode-map (kbd "C-<backspace>") 'paredit-backward-kill-word)
-  (define-key paredit-mode-map (kbd "A-<backspace>") 'paredit-backward-kill-word)
-  (define-key paredit-mode-map (kbd "A-<delete>") 'paredit-forward-kill-word)
+    (require 'paredit)
 
-  (define-key paredit-mode-map (kbd "C-M-ä") 'kill-sexp)
-  (define-key paredit-mode-map (kbd "C-M-å") 'backward-kill-sexp)
+    (add-hook 'paredit-mode-hook 'highlight-sexps-mode)
 
-  (define-key paredit-mode-map (kbd "<C-left>") 'paredit-backward)
-  (define-key paredit-mode-map (kbd "<C-right>") 'paredit-forward)
-  (define-key paredit-mode-map (kbd "<C-down>") 'paredit-forward-down)
-  (define-key paredit-mode-map (kbd "<C-up>") 'paredit-backward-up)
-  (define-key paredit-mode-map (kbd "<C-M-down>") 'paredit-forward-up)
-  (define-key paredit-mode-map (kbd "<C-M-up>") 'paredit-backward-down)
+    (define-key paredit-mode-map (kbd "C-<backspace>") 'paredit-backward-kill-word)
+    (define-key paredit-mode-map (kbd "A-<backspace>") 'paredit-backward-kill-word)
+    (define-key paredit-mode-map (kbd "A-<delete>") 'paredit-forward-kill-word)
 
-  (define-key paredit-mode-map (kbd "<M-left>") 'paredit-forward-barf-sexp)
-  (define-key paredit-mode-map (kbd "<M-right>") 'paredit-forward-slurp-sexp)
+    (define-key paredit-mode-map (kbd "C-M-ä") 'kill-sexp)
+    (define-key paredit-mode-map (kbd "C-M-å") 'backward-kill-sexp)
 
-  (define-key paredit-mode-map (kbd "<C-M-left>") 'paredit-backward-slurp-sexp)
-  (define-key paredit-mode-map (kbd "<C-M-right>") 'paredit-backward-barf-sexp)
+    (define-key paredit-mode-map (kbd "<C-left>") 'paredit-backward)
+    (define-key paredit-mode-map (kbd "<C-right>") 'paredit-forward)
+    (define-key paredit-mode-map (kbd "<C-down>") 'paredit-forward-down)
+    (define-key paredit-mode-map (kbd "<C-up>") 'paredit-backward-up)
+    (define-key paredit-mode-map (kbd "<C-M-down>") 'paredit-forward-up)
+    (define-key paredit-mode-map (kbd "<C-M-up>") 'paredit-backward-down)
 
-  (define-key paredit-mode-map (kbd "C-c (") 'paredit-wrap-sexp)
+    (define-key paredit-mode-map (kbd "<M-left>") 'paredit-forward-barf-sexp)
+    (define-key paredit-mode-map (kbd "<M-right>") 'paredit-forward-slurp-sexp)
 
-  (define-key paredit-mode-map (kbd "{") 'paredit-open-curly)
+    (define-key paredit-mode-map (kbd "<C-M-left>") 'paredit-backward-slurp-sexp)
+    (define-key paredit-mode-map (kbd "<C-M-right>") 'paredit-backward-barf-sexp)
 
-  (defvar electrify-return-match
-    "[\]}\)\"]"
-    "If this regexp matches the text after the cursor, do an \"electric\"
-    return.")
-  (defun electrify-return-if-match (arg)
-    "If the text after the cursor matches `electrify-return-match' then
-    open and indent an empty line between the cursor and the text.  Move the
-    cursor to the new line."
-    (interactive "P")
-    (let ((case-fold-search nil))
-      (if (looking-at electrify-return-match)
-          (save-excursion (newline-and-indent)))
-      (newline arg)
-      (indent-according-to-mode)))
+    (define-key paredit-mode-map (kbd "C-c (") 'paredit-wrap-sexp)
 
+    (define-key paredit-mode-map (kbd "{") 'paredit-open-curly)
 
+    (defvar electrify-return-match
+      "[\]}\)\"]"
+      "If this regexp matches the text after the cursor, do an \"electric\"
+      return.")
+    (defun electrify-return-if-match (arg)
+      "If the text after the cursor matches `electrify-return-match' then
+      open and indent an empty line between the cursor and the text.  Move the
+      cursor to the new line."
+      (interactive "P")
+      (let ((case-fold-search nil))
+        (if (looking-at electrify-return-match)
+            (save-excursion (newline-and-indent)))
+        (newline arg)
+        (indent-according-to-mode)))
+
+    (defun start-of-sexp (pt)
+      "Start of the s-expression surrounding PT."
+      (save-excursion (cadr (syntax-ppss pt))))
+
+    (defun end-of-sexp (pt)
+      "End of s-expression that matches beginning point PT."
+      (condition-case nil
+          (scan-sexps pt 1)
+        (error nil)))
+
+    (defun expand-sexp ()
+      (interactive)
+      (let* ((pt (point))
+             (prev (start-of-sexp pt)))
+        (when prev
+          (let ((next (end-of-sexp prev)))
+            (when next
+              (set-mark prev)
+              (goto-char next))))))
+
+    (defun eval--wrapping-sexp (arg f)
+      (let* ((pt (point))
+             (prev (start-of-sexp pt)))
+        (when prev
+          (let ((next (end-of-sexp prev)))
+            (when next
+              (goto-char next)
+              (funcall f arg)
+              (goto-char pt))))))
+
+    (defun inside-end-of-sexp ()
+      (interactive)
+      (let* ((pt (point))
+             (prev (start-of-sexp pt)))
+        (when prev
+          (let ((next (end-of-sexp prev)))
+            (when next
+              (goto-char next)
+              (backward-char))))))
+
+    (defun electrify-return-end-of-sexp (arg)
+      (interactive "P")
+      (inside-end-of-sexp)
+      (electrify-return-if-match arg)
+      (previous-line)
+      (when (= (string-match-p "^\\s-*$" (thing-at-point 'line)) 0)
+        (delete-indentation))
+      (next-line))
+
+    (defun return-end-of-sexp ()
+      (interactive)
+      (inside-end-of-sexp)
+      (newline))
+
+    (defun eval-wrapping-sexp (arg)
+      (interactive "P")
+      (eval--wrapping-sexp arg 'eval-last-sexp))
+
+    (define-key paredit-mode-map (kbd "M-h") 'expand-sexp)
+
+  ;;  (define-key paredit-mode-map (kbd "<return>") 'electrify-return-if-match)
+    (define-key paredit-mode-map (kbd "<C-return>") 'end-of-line-newline)
+  (define-key paredit-mode-map (kbd "<S-return>") 'return-end-of-sexp)
+  ;;  (define-key paredit-mode-map (kbd "<S-return>") 'electrify-return-end-of-sexp)
 #+END_SRC
 
 #+RESULTS:
-: electrify-return-if-match
+: electrify-return-end-of-sexp
 
 *** auto-indent
 #+BEGIN_SRC emacs-lisp
   (require 'auto-indent-mode)
-  (auto-indent-global-mode)
+  ;;(auto-indent-global-mode)
 #+END_SRC
 
 #+RESULTS:
@@ -316,269 +434,274 @@ This is my file for configurating emacs. There are many like it, but this one is
 *** inf-clojure & arcadia
 **** Arcadia
 #+BEGIN_SRC emacs-lisp
-  (require 'inf-clojure)
+    (require 'inf-clojure)
 
-  (require 'miracle)
-  (add-hook 'clojure-mode-hook 'clojure-enable-miracle)
-  (add-hook 'miracle-mode-hook 'paredit-mode)
-
-
-  (defcustom arcadia-repl-port 37220
-    "Port to connect to Arcadia repl.")
-
-  (defun arcadia-repl ()
-    "Attempts to connect to a running Arcadia instance over the Arcadia socket-repl."
-    (interactive)
-    (inf-clojure-connect "localhost" arcadia-repl-port))
+    (require 'miracle)
+    (add-hook 'clojure-mode-hook 'paredit-mode)
+    ;;(add-hook 'clojure-mode-hook 'miracle-interaction-mode)
 
 
-  ;; inf-clojure's argslists eldoc support spams the Arcadia repl
-  ;; and slows down emacs. This (removable) empty wrapper function is a
+    (defcustom arcadia-repl-port 37220
+      "Port to connect to Arcadia repl.")
+
+    (defun arcadia-repl ()
+      "Attempts to connect to a running Arcadia instance over the Arcadia socket-repl."
+      (interactive)
+      (inf-clojure-connect "localhost" arcadia-repl-port))
+
+
+    ;; inf-clojure's argslists eldoc support spams the Arcadia repl
+    ;; and slows down emacs. This (removable) empty wrapper function is a
   ;; quick kludge to disable it.
-  (defun arcadia-inf-clojure-eldoc-setup-wrapper (orig-fun &rest args))
+    (defun arcadia-inf-clojure-eldoc-setup-wrapper (orig-fun &rest args))
 
-  ;; Temporary hack that disables eldoc for inf-clojure.
-  (advice-add 'inf-clojure-eldoc-setup :around #'arcadia-inf-clojure-eldoc-setup-wrapper)
+    ;; Temporary hack that disables eldoc for inf-clojure.
+    (advice-add 'inf-clojure-eldoc-setup :around #'arcadia-inf-clojure-eldoc-setup-wrapper)
 
-  (setq inf-clojure-repl-type 'clojure)
+    ;; (setq inf-clojure-repl-type 'clojure)
 
-  (defun inf-clojure-change-to-ns (nsn)
-    (interactive "sNamespace to go to: ")
-    (inf-clojure--process-response
-     (concat "(do (if-not (find-ns '" nsn ") (try (require '" nsn " :reload) (catch Exception e (ns " nsn " )))) (in-ns '" nsn "))")
-     (inf-clojure-proc)))
+    (defun inf-clojure-change-to-ns (nsn)
+      (interactive "sNamespace to go to: ")
+      (inf-clojure--process-response
+       (concat "(do (if-not (find-ns '" nsn ") (try (require '" nsn " :reload) (catch Exception e (ns " nsn " )))) (in-ns '" nsn "))")
+       (inf-clojure-proc)))
 
-  (defun inf-clojure-eval-in-ns (nsn command)
-    (interactive "sNamespace to go to: \nsCommand: ")
-    (inf-clojure--process-response
-     (concat "(do (if-not (find-ns '" nsn ") (try (require '" nsn " :reload) (catch Exception e (ns " nsn " )))) (in-ns '" nsn ")" command ")")
-     (inf-clojure-proc)))
+    (defun inf-clojure-eval-in-ns (nsn command)
+      (interactive "sNamespace to go to: \nsCommand: ")
+      (inf-clojure--process-response
+       (concat "(do (if-not (find-ns '" nsn ") (try (require '" nsn " :reload) (catch Exception e (ns " nsn " )))) (in-ns '" nsn ")" command ")")
+       (inf-clojure-proc)))
 
-  (defun inf-clojure-eval-in-ns-of-current-file (command)
-    (interactive "sCommand: ")
-    (if-let ((ns (clojure-find-ns)))
-        (inf-clojure-eval-in-ns ns command)
-      (inf-clojure--process-response command (inf-clojure-proc))))
+    (defun inf-clojure-eval-in-ns-of-current-file (command)
+      (interactive "sCommand: ")
+      (if-let ((ns (clojure-find-ns)))
+          (inf-clojure-eval-in-ns ns command)
+        (inf-clojure--process-response command (inf-clojure-proc))))
 
-  (defun inf-clojure-eval-last-sexp-in-ns-of-current-file ()
-    (interactive)
-    (if (not (equal (buffer-name (current-buffer)) inf-clojure-buffer))
-        (inf-clojure-set-ns nil))
-    (inf-clojure-eval-last-sexp))
+    (defun inf-clojure-eval-last-sexp-in-ns-of-current-file ()
+      (interactive)
+      (if (not (equal (buffer-name (current-buffer)) inf-clojure-buffer))
+          (inf-clojure-set-ns nil))
+      (inf-clojure-eval-last-sexp))
 
-  (defun go-to-csharp-definition ()
-    "Go to the definition of a C# class from a clj-file."
-    (interactive)
-    (let ((pos (- (point) (line-beginning-position)))
-          (beg (progn (re-search-forward "[[:space:]]")
-                      (match-beginning 0)))
-          (end (progn (backward-char)
-                      (re-search-backward "[[:space:]]")
-                      (match-end 0)))
-                                          ;(beg (line-beginning-position))
-                                          ;(end (line-end-position))
-          )
-      (copy-region-as-kill beg end)
-      (find-file-other-window (concat
-                               (cdr (assoc :project-root omnisharp--server-info))
-                               "/temp-file.cs"))
-      (erase-buffer)
-      (let ((buffer-name (buffer-name)))
-        (insert "using UnityEngine;
+    (defun go-to-csharp-definition ()
+      "Go to the definition of a C# class from a clj-file."
+      (interactive)
+      (let ((pos (- (point) (line-beginning-position)))
+            (beg (progn (re-search-forward "[[:space:]]")
+                        (match-beginning 0)))
+            (end (progn (backward-char)
+                        (re-search-backward "[[:space:]]")
+                        (match-end 0)))
+                                            ;(beg (line-beginning-position))
+                                            ;(end (line-end-position))
+            )
+        (copy-region-as-kill beg end)
+        (find-file-other-window (concat
+                                 (cdr (assoc :project-root omnisharp--server-info))
+                                 "/temp-file.cs"))
+        (erase-buffer)
+        (let ((buffer-name (buffer-name)))
+          (insert "using UnityEngine;
 
-  public class Lul {
-  ")
-        (yank)
-        (insert "
-  }")
-        (previous-line)
-        (end-of-line)
-        (backward-char)
-        (omnisharp-go-to-definition))))
+    public class Lul {
+    ")
+          (yank)
+          (insert "
+    }")
+          (previous-line)
+          (end-of-line)
+          (backward-char)
+          (omnisharp-go-to-definition))))
 
-  (defvar get-interns-form
-    "(defn ns-interns-of-aliases
-  [ns]
-  (->> ns
-  ns-aliases
-  (map #(vector (first %) (keys (ns-interns (second %)))))
-  (into {})))
+    (defvar get-interns-form
+      "(defn ns-interns-of-aliases
+    [ns]
+    (->> ns
+    ns-aliases
+    (map #(vector (first %) (keys (ns-interns (second %)))))
+    (into {})))
 
-  (defn keys-to-prefixes
-  [coll]
-  (->> coll
-  (map (fn [[k vs]] (map #(str k \"/\" %) vs)))
-  flatten
-  (map symbol)))")
+    (defn keys-to-prefixes
+    [coll]
+    (->> coll
+    (map (fn [[k vs]] (map #(str k \"/\" %) vs)))
+    flatten
+    (map symbol)))")
 
-  (defvar get-all-vars-form
-    "(defn get-all-vars [ns]
-    (map str (concat (keys (ns-map ns))
-            (keys-to-prefixes (ns-interns-of-aliases ns)))))")
+    (defvar get-all-vars-form
+      "(defn get-all-vars [ns]
+      (map str (concat (keys (ns-map ns))
+              (keys-to-prefixes (ns-interns-of-aliases ns)))))")
 
-  (defun arcadia-get-public-members ()
-    "Get the public members of a type."
-    (interactive)
-    (let* ((pos (point))
-           (beg (progn (re-search-backward "(")
-                       (match-beginning 0)))
-           (end (progn (re-search-forward ")")
-                       (match-end 0)))
-           (identifier (buffer-substring beg end))
-           (names (cdr (car (read-from-string identifier)))))
-      (print names)
-      (print (string-join (mapcar 'prin1-to-string names) " '"))
-      (let ((res (car (read-from-string (inf-clojure--process-response
-                                         (concat "(get-names (get-public-members (get-type-of-nested-member "
-                                                 (string-join (mapcar 'prin1-to-string names) " '")
-                                                 ")))")
-                                         (inf-clojure-proc))))))
-        (goto-char pos)
-        (print res)
-        res)))
+    (defun arcadia-get-public-members ()
+      "Get the public members of a type."
+      (interactive)
+      (let* ((pos (point))
+             (beg (progn (re-search-backward "(")
+                         (match-beginning 0)))
+             (end (progn (re-search-forward ")")
+                         (match-end 0)))
+             (identifier (buffer-substring beg end))
+             (names (cdr (car (read-from-string identifier)))))
+        (print names)
+        (print (string-join (mapcar 'prin1-to-string names) " '"))
+        (let ((res (car (read-from-string (inf-clojure--process-response
+                                           (concat "(get-names (get-public-members (get-type-of-nested-member "
+                                                   (string-join (mapcar 'prin1-to-string names) " '")
+                                                   ")))")
+                                           (inf-clojure-proc))))))
+          (goto-char pos)
+          (print res)
+          res)))
 
-  (defun helm-arcadia-show-members ()
-    (interactive)
-    (let ((chosen (helm :sources (helm-build-sync-source "test"
-                                   :candidates (arcadia-get-public-members))
-                        :buffer "*helm my command*")))
-      (when chosen
-        (insert " ")
-        (insert chosen))))
+    (defun helm-arcadia-show-members ()
+      (interactive)
+      (let ((chosen (helm :sources (helm-build-sync-source "test"
+                                     :candidates (arcadia-get-public-members))
+                          :buffer "*helm my command*")))
+        (when chosen
+          (insert " ")
+          (insert chosen))))
 
-  (defun inf-clojure-vars ()
-    "Gets a list of the functions in the current namespace."
-    (interactive)
-    (let ((res (car (read-from-string (inf-clojure-eval-in-ns-of-current-file
-                                       (concat "(do " get-all-vars-form " (get-all-vars *ns*))"))))))
-      (sort (mapcar 'prin1-to-string res) 'string<)))
+    (defun inf-clojure-vars ()
+      "Gets a list of the functions in the current namespace."
+      (interactive)
+      (let ((res (car (read-from-string (inf-clojure-eval-in-ns-of-current-file
+                                         (concat "(do " get-all-vars-form " (get-all-vars *ns*))"))))))
+        (sort (mapcar 'prin1-to-string res) 'string<)))
 
-  (defun helm-arcadia-vars ()
-    "List all vars."
-    (interactive)
-    (let ((chosen (helm :sources (helm-build-sync-source "Functions in namespace"
-                                   :candidates (inf-clojure-vars))
-                        :buffer "*helm my command*")))
-      (when chosen
-        (insert chosen))))
-
-  (defun helm-arcadia-completion-at-point ()
-    "Gets the last word and starts helm using the word as input, and all the functions available in the current inf-clojure process."
-    (interactive)
-    (let* ((pos (point))
-           (beg (progn (re-search-backward "[[:space:]]\\|\n\\|(\\|^")
-                       (forward-char)
-                       (match-end 0)))
-           (end (progn (re-search-forward "[[:space:]]\\|\n\\|)\\|$")
-                       (backward-char)
-                       (match-beginning 0)))
-           (identifier (buffer-substring beg end))
-           (parsed-id (car (read-from-string identifier))))
-
+    (defun helm-arcadia-vars ()
+      "List all vars."
+      (interactive)
       (let ((chosen (helm :sources (helm-build-sync-source "Functions in namespace"
                                      :candidates (inf-clojure-vars))
-                          :buffer "*helm my command*"
-                          :input (prin1-to-string parsed-id))))
+                          :buffer "*helm my command*")))
         (when chosen
-          (kill-region beg end)
-          (insert chosen)))))
+          (insert chosen))))
 
-  (defun inf-clojure-source-of-function (fun)
-    "Gets the source for a function."
-    (interactive "sSource of clojure function: ")
-    (let ((res (inf-clojure-eval-in-ns-of-current-file
-                (concat "(do (require '[clojure.repl :as temp-clojure-repl-ns]) (temp-clojure-repl-ns/source "
-                        fun
-                        "))"))))
-      (switch-to-buffer-other-window "*inf-clojure-source*")
-      (erase-buffer)
-      (clojure-mode)
-      (insert res)
-      (goto-char 0)
-      (while (re-search-forward "
-" nil t)
-        (replace-match ""))))
+    (defun helm-arcadia-completion-at-point ()
+      "Gets the last word and starts helm using the word as input, and all the functions available in the current inf-clojure process."
+      (interactive)
+      (let* ((pos (point))
+             (beg (progn (re-search-backward "[[:space:]]\\|\n\\|(\\|^")
+                         (forward-char)
+                         (match-end 0)))
+             (end (progn (re-search-forward "[[:space:]]\\|\n\\|)\\|$")
+                         (backward-char)
+                         (match-beginning 0)))
+             (identifier (buffer-substring beg end))
+             (parsed-id (car (read-from-string identifier))))
 
-  (defun helm-inf-clojure-source-of-function ()
-    (interactive)
-    (let ((chosen (helm :sources (helm-build-sync-source "Functions in namespace"
-                                   :candidates (inf-clojure-get-available-functions))
-                        :buffer "*helm my command*")))
-      (when chosen
-        (inf-clojure-source-of-function chosen))))
+        (let ((chosen (helm :sources (helm-build-sync-source "Functions in namespace"
+                                       :candidates (inf-clojure-vars))
+                            :buffer "*helm my command*"
+                            :input (prin1-to-string parsed-id))))
+          (when chosen
+            (kill-region beg end)
+            (insert chosen)))))
 
-  (defun inf-clojure-source-of-function-at-point ()
-    (interactive)
-    (let* ((pos (point))
-           (beg (progn (re-search-backward "[[:space:]]\\|\n\\|(")
-                       (forward-char)
-                       (match-end 0)))
-           (end (progn (re-search-forward "[[:space:]]\\|\n\\|)")
-                       (backward-char)
-                       (match-beginning 0)))
-           (identifier (buffer-substring beg end))
-           (parsed-id (car (read-from-string identifier))))
-      (inf-clojure-source-of-function identifier)))
+    (defun inf-clojure-source-of-function (fun)
+      "Gets the source for a function."
+      (interactive "sSource of clojure function: ")
+      (let ((res (inf-clojure-eval-in-ns-of-current-file
+                  (concat "(do (require '[clojure.repl :as temp-clojure-repl-ns]) (temp-clojure-repl-ns/source "
+                          fun
+                          "))"))))
+        (switch-to-buffer-other-window "*inf-clojure-source*")
+        (erase-buffer)
+        (clojure-mode)
+        (insert res)
+        (goto-char 0)
+        (while (re-search-forward "
+  " nil t)
+          (replace-match ""))))
 
-  ;; (eval-after-load 'clojure-mode
-  ;;   '(progn
-  ;;      (define-key clojure-mode-map (kbd "<tab>") 'helm-arcadia-completion-at-point)
-  ;;      (define-key clojure-mode-map (kbd "M-.") 'inf-clojure-source-of-function-at-point)
+    (defun helm-inf-clojure-source-of-function ()
+      (interactive)
+      (let ((chosen (helm :sources (helm-build-sync-source "Functions in namespace"
+                                     :candidates (inf-clojure-get-available-functions))
+                          :buffer "*helm my command*")))
+        (when chosen
+          (inf-clojure-source-of-function chosen))))
 
-  ;;      (define-key clojure-mode-map (kbd "C-x C-e") 'inf-clojure-eval-last-sexp-in-ns-of-current-file)
-  ;;      (define-key clojure-mode-map (kbd "C-M-x") 'inf-clojure-eval-defun-in-ns-of-current-file)))
+    (defun inf-clojure-source-of-function-at-point ()
+      (interactive)
+      (let* ((pos (point))
+             (beg (progn (re-search-backward "[[:space:]]\\|\n\\|(")
+                         (forward-char)
+                         (match-end 0)))
+             (end (progn (re-search-forward "[[:space:]]\\|\n\\|)")
+                         (backward-char)
+                         (match-beginning 0)))
+             (identifier (buffer-substring beg end))
+             (parsed-id (car (read-from-string identifier))))
+        (inf-clojure-source-of-function identifier)))
+
+     (eval-after-load 'clojure-mode
+       '(progn
+    ;;      (define-key clojure-mode-map (kbd "<tab>") 'helm-arcadia-completion-at-point)
+    ;;      (define-key clojure-mode-map (kbd "M-.") 'inf-clojure-source-of-function-at-point)
+
+        ;;  (define-key clojure-mode-map (kbd "C-x C-e") 'inf-clojure-eval-last-sexp-in-ns-of-current-file)
+          (define-key clojure-mode-map (kbd "C-ö C-m") 'miracle)
+          (define-key clojure-mode-map (kbd "C-ö m") 'miracle)
+    ;;      (define-key clojure-mode-map (kbd "C-M-x") 'inf-clojure-eval-defun-in-ns-of-current-file))
+          ))
 
 #+END_SRC
 
 #+RESULTS:
-: inf-clojure-source-of-function-at-point
+: miracle
 **** Inf-clojure
 #+BEGIN_SRC emacs-lisp
-    (require 'clojure-mode)
+  (require 'clojure-mode)
 
-    (add-hook 'clojure-mode-hook 'paredit-mode)
-    (add-hook 'clojure-mode-hook 'auto-indent-mode)
+        (add-hook 'clojure-mode-hook 'paredit-mode)
+        (add-hook 'clojure-mode-hook 'auto-indent-mode)
 
-    (require 'inf-clojure)
+        (require 'inf-clojure)
 
-      (define-key inf-clojure-minor-mode-map (kbd "<tab>") 'helm-arcadia-completion-at-point)
-    (define-key inf-clojure-minor-mode-map (kbd "M-.") 'inf-clojure-source-of-function-at-point)
+          (define-key inf-clojure-minor-mode-map (kbd "<tab>") 'helm-arcadia-completion-at-point)
+        (define-key inf-clojure-minor-mode-map (kbd "M-.") 'inf-clojure-source-of-function-at-point)
 
-  (define-key inf-clojure-mode-map (kbd "<M-return>") 'comint-send-input)
+      (define-key inf-clojure-mode-map (kbd "<M-return>") 'comint-send-input)
 
-                                            ;(define-key inf-clojure-minor-mode-map (kbd "\C-x\C-e") 'inf-clojure-eval-last-sexp-in-ns-of-current-file)
+                                                ;(define-key inf-clojure-minor-mode-map (kbd "\C-x\C-e") 'inf-clojure-eval-last-sexp-in-ns-of-current-file)
 
 
-  ;  (setq inf-clojure-log-activity nil)
+        (setq inf-clojure-log-activity nil)
 
-    (defun cljs-figwheel-repl ()
-      (interactive)
-      (inf-clojure "lein figwheel"))
+        (defun cljs-figwheel-repl ()
+          (interactive)
+          (inf-clojure "lein figwheel"))
 
-  ;  (add-hook 'clojure-mode-hook #'inf-clojure-minor-mode)
+      ;  (add-hook 'clojure-mode-hook #'inf-clojure-minor-mode)
 
-    ;; transpose sexp
-    ;; kill sexp
-    ;; next/prev sexp
-    ;; into/out sexp back/forward
+        ;; transpose sexp
+        ;; kill sexp
+        ;; next/prev sexp
+        ;; into/out sexp back/forward
 
-    (fset 'inf-clojure-load-current-file-no-prompt
-          (lambda (&optional arg) "Keyboard macro." (interactive "p") (kmacro-exec-ring-item (quote ([134217845 105 110 102 32 99 108 111 106 117 114 101 45 108 111 97 100 45 105 backspace 102 105 108 101 return return] 0 "%d")) arg)))
+        (fset 'inf-clojure-load-current-file-no-prompt
+              (lambda (&optional arg) "Keyboard macro." (interactive "p") (kmacro-exec-ring-item (quote ([134217845 105 110 102 32 99 108 111 106 117 114 101 45 108 111 97 100 45 105 backspace 102 105 108 101 return return] 0 "%d")) arg)))
 
-    ;; (eval-after-load 'clojure-mode
-    ;;   '(progn
-    ;;      (define-key clojure-mode-map (kbd "C-:") nil)
-    ;;      (define-key clojure-mode-map (kbd "C-c C-j") 'cljs-figwheel-repl)
-    ;;      (define-key clojure-mode-map (kbd "C-c C-p") 'arcadia-repl)
-    ;;      (define-key clojure-mode-map (kbd "C-c C-z") 'inf-clojure-switch-to-repl)
-    ;;      (define-key clojure-mode-map (kbd "C-å") 'inf-clojure-eval-defun)
-    ;;      (define-key clojure-mode-map (kbd "C-c C-l") 'inf-clojure-load-current-file-no-prompt)
-    ;;      (define-key clojure-mode-map (kbd "C-S-c C-l") 'inf-clojure-eval-buffer)
-    ;;      (define-key clojure-mode-map (kbd "C-x C-ö") 'inf-clojure-eval-defun-and-go)))
+        ;; (eval-after-load 'clojure-mode
+        ;;   '(progn
+        ;;      (define-key clojure-mode-map (kbd "C-:") nil)
+        ;;      (define-key clojure-mode-map (kbd "C-c C-j") 'cljs-figwheel-repl)
+        ;;      (define-key clojure-mode-map (kbd "C-c C-p") 'arcadia-repl)
+        ;;      (define-key clojure-mode-map (kbd "C-c C-z") 'inf-clojure-switch-to-repl)
+        ;;      (define-key clojure-mode-map (kbd "C-å") 'inf-clojure-eval-defun)
+        ;;      (define-key clojure-mode-map (kbd "C-c C-l") 'inf-clojure-load-current-file-no-prompt)
+        ;;      (define-key clojure-mode-map (kbd "C-S-c C-l") 'inf-clojure-eval-buffer)
+        ;;      (define-key clojure-mode-map (kbd "C-x C-ö") 'inf-clojure-eval-defun-and-go)))
 
-    (add-hook 'inf-clojure-mode-hook 'paredit-mode)
+    (define-key inf-clojure-minor-mode-map (kbd "C-c C-l") 'inf-clojure-load-current-file-no-prompt)
 
-    (provide 'clojure-conf)
+        (add-hook 'inf-clojure-mode-hook 'paredit-mode)
+
+        (provide 'clojure-conf)
 
 #+END_SRC
 
@@ -599,12 +722,42 @@ This is my file for configurating emacs. There are many like it, but this one is
 
 #+RESULTS:
 | anaconda-mode | multi-line-python-mode-hook |
+*** magit
+#+BEGIN_SRC emacs-lisp
+  (require 'magit)
+
+  (global-magit-file-mode)
+#+END_SRC
+
+#+RESULTS:
+: t
+
+*** rust
+#+BEGIN_SRC emacs-lisp
+  (add-hook 'rust-mode 'racer-mode)
+#+END_SRC
+
+#+RESULTS:
+| racer-mode |
+
+*** windmove
+#+BEGIN_SRC emacs-lisp
+  (when (fboundp 'windmove-default-keybindings)
+    (windmove-default-keybindings))
+
+  (add-hook 'org-shiftup-final-hook 'windmove-up)
+  (add-hook 'org-shiftleft-final-hook 'windmove-left)
+  (add-hook 'org-shiftdown-final-hook 'windmove-down)
+  (add-hook 'org-shiftright-final-hook 'windmove-right)
+#+END_SRC
+
+#+RESULTS:
+| windmove-right |
 
 ** Lisp-modes (bl.a. starta paredit-mode)
 #+BEGIN_SRC emacs-lisp
   (add-hook 'lisp-mode-hook 'enable-paredit-mode)
   (add-hook 'emacs-lisp-mode-hook 'enable-paredit-mode)
-
 #+END_SRC
 
 #+RESULTS:
@@ -621,7 +774,6 @@ This is my file for configurating emacs. There are many like it, but this one is
 
   (global-set-key (kbd "C-S-m") 'end-of-line-newline)
   (global-set-key (kbd "C-<return>") 'end-of-line-newline)
-  (global-set-key (kbd "<tab>") 'completion-at-point)
 
   (global-set-key (kbd "C-c ;") 'comment-or-uncomment-region)
 
@@ -654,13 +806,16 @@ This is my file for configurating emacs. There are many like it, but this one is
 *** Lisp
 #+BEGIN_SRC emacs-lisp
   (global-set-key (kbd "C-c C-c") 'eval-defun)
+  (global-set-key (kbd "C-å") 'paredit-expand)
 #+END_SRC
 
 #+RESULTS:
-: eval-defun
+: paredit-expand
 
 *** Helm
 #+BEGIN_SRC emacs-lisp
+  (global-set-key (kbd "<tab>") 'helm-company)
+
   (global-set-key (kbd "M-x") #'helm-M-x)
   (global-set-key (kbd "C-x r b") #'helm-filtered-bookmarks)
   (global-set-key (kbd "C-x C-f") #'helm-find-files)
@@ -668,7 +823,8 @@ This is my file for configurating emacs. There are many like it, but this one is
   (require 'helm-swoop)
 
   ;; Change the keybinds to whatever you like :)
-  (global-set-key (kbd "M-i") 'helm-swoop)
+  (global-set-key (kbd "M-i") 'helm-swoop-without-pre-input)
+  (global-set-key (kbd "C-c C-M-i") 'helm-swoop)
   (global-set-key (kbd "M-I") 'helm-swoop-back-to-last-point)
   (global-set-key (kbd "C-c M-i") 'helm-multi-swoop)
   (global-set-key (kbd "C-x M-i") 'helm-multi-swoop-all)
@@ -717,7 +873,6 @@ This is my file for configurating emacs. There are many like it, but this one is
 
 
 #+RESULTS:
-: t
 
 *** VB
 #+BEGIN_SRC emacs-lisp
@@ -734,6 +889,23 @@ This is my file for configurating emacs. There are many like it, but this one is
 : ((\.odc\' . archive-mode) (\.odf\' . archive-mode) (\.odi\' . archive-mode) (\.otp\' . archive-mode) (\.odp\' . archive-mode) (\.otg\' . archive-mode) (\.odg\' . archive-mode) (\.ots\' . archive-mode) (\.ods\' . archive-mode) (\.odm\' . archive-mode) (\.ott\' . archive-mode) (\.odt\' . archive-mode) (\.vbs\' . visual-basic-mode) (\.clj\' . lisp-mode) (\.cljs\' . lisp-mode) (\.gpg\(~\|\.~[0-9]+~\)?\' nil epa-file) (\.elc\' . elisp-byte-code-mode) (\.zst\' nil jka-compr) (\.dz\' nil jka-compr) (\.xz\' nil jka-compr) (\.lzma\' nil jka-compr) (\.lz\' nil jka-compr) (\.g?z\' nil jka-compr) (\.bz2\' nil jka-compr) (\.Z\' nil jka-compr) (\.vr[hi]?\' . vera-mode) (\(?:\.\(?:rbw?\|ru\|rake\|thor\|jbuilder\|rabl\|gemspec\|podspec\)\|/\(?:Gem\|Rake\|Cap\|Thor\|Puppet\|Berks\|Vagrant\|Guard\|Pod\)file\)\' . ruby-mode) (\.re?st\' . rst-mode) (\.py[iw]?\' . python-mode) (\.less\' . less-css-mode) (\.scss\' . scss-mode) (\.awk\' . awk-mode) (\.\(u?lpc\|pike\|pmod\(\.in\)?\)\' . pike-mode) (\.idl\' . idl-mode) (\.java\' . java-mode) (\.m\' . objc-mode) (\.ii\' . c++-mode) (\.i\' . c-mode) (\.lex\' . c-mode) (\.y\(acc\)?\' . c-mode) (\.h\' . c-or-c++-mode) (\.c\' . c-mode) (\.\(CC?\|HH?\)\' . c++-mode) (\.[ch]\(pp\|xx\|\+\+\)\' . c++-mode) (\.\(cc\|hh\)\' . c++-mode) (\.\(bat\|cmd\)\' . bat-mode) (\.[sx]?html?\(\.[a-zA-Z_]+\)?\' . mhtml-mode) (\.svgz?\' . image-mode) (\.svgz?\' . xml-mode) (\.x[bp]m\' . image-mode) (\.x[bp]m\' . c-mode) (\.p[bpgn]m\' . image-mode) (\.tiff?\' . image-mode) (\.gif\' . image-mode) (\.png\' . image-mode) (\.jpe?g\' . image-mode) (\.te?xt\' . text-mode) (\.[tT]e[xX]\' . tex-mode) (\.ins\' . tex-mode) (\.ltx\' . latex-mode) (\.dtx\' . doctex-mode) (\.org\' . org-mode) (\.el\' . emacs-lisp-mode) (Project\.ede\' . emacs-lisp-mode) (\.\(scm\|stk\|ss\|sch\)\' . scheme-mode) (\.l\' . lisp-mode) (\.li?sp\' . lisp-mode) (\.[fF]\' . fortran-mode) (\.for\' . fortran-mode) (\.p\' . pascal-mode) (\.pas\' . pascal-mode) (\.\(dpr\|DPR\)\' . delphi-mode) (\.ad[abs]\' . ada-mode) (\.ad[bs].dg\' . ada-mode) (\.\([pP]\([Llm]\|erl\|od\)\|al\)\' . perl-mode) (Imakefile\' . makefile-imake-mode) (Makeppfile\(?:\.mk\)?\' . makefile-makepp-mode) (\.makepp\' . makefile-makepp-mode) (\.mk\' . makefile-gmake-mode) (\.make\' . makefile-gmake-mode) ([Mm]akefile\' . makefile-gmake-mode) (\.am\' . makefile-automake-mode) (\.texinfo\' . texinfo-mode) (\.te?xi\' . texinfo-mode) (\.[sS]\' . asm-mode) (\.asm\' . asm-mode) (\.css\' . css-mode) (\.mixal\' . mixal-mode) (\.gcov\' . compilation-mode) (/\.[a-z0-9-]*gdbinit . gdb-script-mode) (-gdb\.gdb . gdb-script-mode) ([cC]hange\.?[lL]og?\' . change-log-mode) ([cC]hange[lL]og[-.][0-9]+\' . change-log-mode) (\$CHANGE_LOG\$\.TXT . change-log-mode) (\.scm\.[0-9]*\' . scheme-mode) (\.[ckz]?sh\'\|\.shar\'\|/\.z?profile\' . sh-mode) (\.bash\' . sh-mode) (\(/\|\`\)\.\(bash_\(profile\|history\|log\(in\|out\)\)\|z?log\(in\|out\)\)\' . sh-mode) (\(/\|\`\)\.\(shrc\|zshrc\|m?kshrc\|bashrc\|t?cshrc\|esrc\)\' . sh-mode) (\(/\|\`\)\.\([kz]shenv\|xinitrc\|startxrc\|xsession\)\' . sh-mode) (\.m?spec\' . sh-mode) (\.m[mes]\' . nroff-mode) (\.man\' . nroff-mode) (\.sty\' . latex-mode) (\.cl[so]\' . latex-mode) (\.bbl\' . latex-mode) (\.bib\' . bibtex-mode) (\.bst\' . bibtex-style-mode) (\.sql\' . sql-mode) (\.m[4c]\' . m4-mode) (\.mf\' . metafont-mode) (\.mp\' . metapost-mode) (\.vhdl?\' . vhdl-mode) (\.article\' . text-mode) (\.letter\' . text-mode) (\.i?tcl\' . tcl-mode) (\.exp\' . tcl-mode) (\.itk\' . tcl-mode) (\.icn\' . icon-mode) (\.sim\' . simula-mode) (\.mss\' . scribe-mode) (\.f9[05]\' . f90-mode) (\.f0[38]\' . f90-mode) (\.indent\.pro\' . fundamental-mode) (\.\(pro\|PRO\)\' . idlwave-mode) (\.srt\' . srecode-template-mode) (\.prolog\' . prolog-mode) (\.tar\' . tar-mode) (\.\(arc\|zip\|lzh\|lha\|zoo\|[jew]ar\|xpi\|rar\|cbr\|7z\|ARC\|ZIP\|LZH\|LHA\|ZOO\|[JEW]AR\|XPI\|RAR\|CBR\|7Z\)\' . archive-mode) (\.oxt\' . archive-mode) (\.\(deb\|[oi]pk\)\' . archive-mode) (\`/tmp/Re . text-mode) (/Message[0-9]*\' . text-mode) (\`/tmp/fol/ . text-mode) (\.oak\' . scheme-mode) (\.sgml?\' . sgml-mode) (\.x[ms]l\' . xml-mode) (\.dbk\' . xml-mode) (\.dtd\' . sgml-mode) (\.ds\(ss\)?l\' . dsssl-mode) (\.jsm?\' . javascript-mode) (\.json\' . javascript-mode) (\.jsx\' . js-jsx-mode) (\.[ds]?vh?\' . verilog-mode) (\.by\' . bovine-grammar-mode) (\.wy\' . wisent-grammar-mode) ([:/\]\..*\(emacs\|gnus\|viper\)\' . emacs-lisp-mode) (\`\..*emacs\' . emacs-lisp-mode) ([:/]_emacs\' . emacs-lisp-mode) (/crontab\.X*[0-9]+\' . shell-script-mode) (\.ml\' . lisp-mode) (\.ld[si]?\' . ld-script-mode) (ld\.?script\' . ld-script-mode) (\.xs\' . c-mode) (\.x[abdsru]?[cnw]?\' . ld-script-mode) (\.zone\' . dns-mode) (\.soa\' . dns-mode) (\.asd\' . lisp-mode) (\.\(asn\|mib\|smi\)\' . snmp-mode) (\.\(as\|mi\|sm\)2\' . snmpv2-mode) (\.\(diffs?\|patch\|rej\)\' . diff-mode) (\.\(dif\|pat\)\' . diff-mode) (\.[eE]?[pP][sS]\' . ps-mode) (\.\(?:PDF\|DVI\|OD[FGPST]\|DOCX?\|XLSX?\|PPTX?\|pdf\|djvu\|dvi\|od[fgpst]\|docx?\|xlsx?\|pptx?\)\' . doc-view-mode-maybe) (configure\.\(ac\|in\)\' . autoconf-mode) (\.s\(v\|iv\|ieve\)\' . sieve-mode) (BROWSE\' . ebrowse-tree-mode) (\.ebrowse\' . ebrowse-tree-mode) (#\*mail\* . mail-mode) (\.g\' . antlr-mode) (\.mod\' . m2-mode) (\.ses\' . ses-mode) (\.docbook\' . sgml-mode) (\.com\' . dcl-mode) (/config\.\(?:bat\|log\)\' . fundamental-mode) (\.\(?:[iI][nN][iI]\|[lL][sS][tT]\|[rR][eE][gG]\|[sS][yY][sS]\)\' . conf-mode) (\.la\' . conf-unix-mode) (\.ppd\' . conf-ppd-mode) (java.+\.conf\' . conf-javaprop-mode) (\.properties\(?:\.[a-zA-Z0-9._-]+\)?\' . conf-javaprop-mode) (\.toml\' . conf-toml-mode) (\.desktop\' . conf-desktop-mode) (\`/etc/\(?:DIR_COLORS\|ethers\|.?fstab\|.*hosts\|lesskey\|login\.?de\(?:fs\|vperm\)\|magic\|mtab\|pam\.d/.*\|permissions\(?:\.d/.+\)?\|protocols\|rpc\|services\)\' . conf-space-mode) (\`/etc/\(?:acpid?/.+\|aliases\(?:\.d/.+\)?\|default/.+\|group-?\|hosts\..+\|inittab\|ksysguarddrc\|opera6rc\|passwd-?\|shadow-?\|sysconfig/.+\)\' . conf-mode) ([cC]hange[lL]og[-.][-0-9a-z]+\' . change-log-mode) (/\.?\(?:gitconfig\|gnokiirc\|hgrc\|kde.*rc\|mime\.types\|wgetrc\)\' . conf-mode) (/\.\(?:enigma\|gltron\|gtk\|hxplayer\|net\|neverball\|qt/.+\|realplayer\|scummvm\|sversion\|sylpheed/.+\|xmp\)rc\' . conf-mode) (/\.\(?:gdbtkinit\|grip\|orbital/.+txt\|rhosts\|tuxracer/options\)\' . conf-mode) (/\.?X\(?:default\|resource\|re\)s\> . conf-xdefaults-mode) (/X11.+app-defaults/\|\.ad\' . conf-xdefaults-mode) (/X11.+locale/.+/Compose\' . conf-colon-mode) (/X11.+locale/compose\.dir\' . conf-javaprop-mode) (\.~?[0-9]+\.[0-9][-.0-9]*~?\' nil t) (\.\(?:orig\|in\|[bB][aA][kK]\)\' nil t) ([/.]c\(?:on\)?f\(?:i?g\)?\(?:\.[a-zA-Z0-9._-]+\)?\' . conf-mode-maybe) (\.[1-9]\' . nroff-mode) (\.tgz\' . tar-mode) (\.tbz2?\' . tar-mode) (\.txz\' . tar-mode) (\.tzst\' . tar-mode))
 
 ** Utlity
+*** Git
+#+BEGIN_SRC emacs-lisp
+    (defun git-pull ()
+      (interactive)
+      (shell-command "git pull"))
+
+    (defun git-push ()
+      (interactive)
+      (shell-command "git push"))
+
+  ;;  (global-set-key (kbd "C-c C-g") 'git-pull)
+    (global-set-key (kbd "C-c C-p") 'git-push)
+#+END_SRC
+
+#+RESULTS:
+: git-push
+
 *** Radbrytningar
 #+BEGIN_SRC emacs-lisp
   (defun end-of-line-newline ()
@@ -765,16 +937,29 @@ This is my file for configurating emacs. There are many like it, but this one is
     ;; everywhere
     (global-company-mode)
     ;;
-    (global-set-key (kbd "<tab>") #'helm-company)
+    ;;(global-set-key (kbd "<tab>") #'helm-company)
     (global-set-key (kbd "M-TAB") #'company-complete)
+
+  (defun miracle-eval-wrapping-sexp ()
+  (interactive)
+    (let* ((pt (point))
+           (prev (start-of-sexp pt)))
+      (when prev
+        (let ((next (end-of-sexp prev)))
+          (when next
+            (miracle-eval-region prev next))))))
+
+  (define-key miracle-interaction-mode-map (kbd "C-c C-g") 'miracle-eval-wrapping-sexp)
+  (define-key miracle-interaction-mode-map (kbd "C-c C-ö") 'miracle-saves-in-defun)
+  (define-key miracle-interaction-mode-map (kbd "C-c C-f C-s") 'miracle-instrument-ns)
+  (define-key miracle-interaction-mode-map (kbd "C-c C-f C-f") 'miracle-instrument-defun)
+  (define-key miracle-interaction-mode-map (kbd "C-c C-f C-p") 'miracle-unstrument-defun)
+  (define-key miracle-interaction-mode-map (kbd "C-c C-f C-x") 'miracle-unstrument-ns)
+  (define-key miracle-interaction-mode-map (kbd "C-c C-f C-l") 'miracle-load-defun)
     ;; for once have escape key cancel things in emacs...
     (define-key company-active-map (kbd "ESC") 'company-abort))
 
   (with-eval-after-load "miracle"
-
-    (add-hook 'clojure-mode-hook 'clojure-enable-miracle)
-
-
     (defun miracle-eval-string (s callback)
       (miracle-send-eval-string
        s
@@ -802,8 +987,8 @@ This is my file for configurating emacs. There are many like it, but this one is
       (interactive (list 'interactive))
       (cl-case command
         (interactive (company-begin-backend 'company-miracle))
-        (prefix (and (or (eq major-mode 'clojurec-mode)
-                         (eq major-mode 'clojure-mode)
+        (prefix (and (or ;;(eq major-mode 'clojurec-mode)
+                         ;;(eq major-mode 'clojure-mode)
                          (eq major-mode 'miracle-mode))
                      (get-buffer "*miracle-connection*")
                      (substring-no-properties (company-grab-symbol))))
@@ -820,4 +1005,25 @@ This is my file for configurating emacs. There are many like it, but this one is
 #+END_SRC
 
 #+RESULTS:
-| company-tide | company-miracle | company-bbdb | company-eclim | company-semantic | company-clang | company-xcode | company-cmake | company-capf | company-files | (company-dabbrev-code company-gtags company-etags company-keywords) | company-oddmuse | company-dabbrev |
+| company-miracle | company-bbdb | company-eclim | company-semantic | company-clang | company-xcode | company-cmake | company-capf | company-files | (company-dabbrev-code company-gtags company-etags company-keywords) | company-oddmuse | company-dabbrev |
+
+*** multiple-cursors
+#+BEGIN_SRC emacs-lisp
+  (require 'multiple-cursors)
+
+  (global-set-key (kbd "C-S-c C-S-c") 'mc/edit-lines)
+#+END_SRC
+* Projekt-specifika
+** IST
+*** medgivande-api
+#+BEGIN_SRC emacs-lisp
+  (fset 'start-medgivande-api
+     (lambda (&optional arg) "Keyboard macro." (interactive "p") (kmacro-exec-ring-item (quote ([24 6 126 47 106 111 98 98 right 105 115 116 right 109 101 100 right down down 134217829 121 97 114 110 32 119 97 116 99 104 45 116 115 return 24 50 67108914 134217845 101 115 104 101 108 108 return 121 97 114 110 32 115 116 97 114 116 44 backspace 45 108 111 99 97 108 return] 0 "%d")) arg)))
+
+  (fset 'start-medgivande-portal
+     (lambda (&optional arg) "Keyboard macro." (interactive "p") (kmacro-exec-ring-item (quote ([21 134217845 101 115 104 101 108 108 return 99 100 return 99 100 32 106 111 98 98 tab 105 115 116 tab 109 101 100 tab tab tab return 121 97 114 110 32 119 97 116 99 104 45 116 115 111 backspace return 24 51 21 134217845 101 115 104 101 108 108 return 121 97 114 110 32 115 116 97 114 116 return] 0 "%d")) arg)))
+
+#+END_SRC
+
+#+RESULTS:
+| lambda | (&optional arg) | Keyboard macro. | (interactive p) | (kmacro-exec-ring-item (quote ([21 134217845 101 115 104 101 108 108 return 99 100 return 99 100 32 106 111 98 98 tab 105 115 116 tab 109 101 100 tab tab tab return 121 97 114 110 32 119 97 116 99 104 45 116 115 111 backspace return 24 51 21 134217845 101 115 104 101 108 108 return 121 97 114 110 32 115 116 97 114 116 return] 0 %d)) arg) |

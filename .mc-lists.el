@@ -3,12 +3,24 @@
 
 (setq mc/cmds-to-run-for-all
       '(
-        org-shiftleft
-        paredit-forward-slurp-sexp
-        paredit-open-round
-        ))
+	coffee-dedent-line-backspace
+	kill-region
+	kill-sexp
+	org-shiftleft
+	paredit-backward
+	paredit-backward-kill-word
+	paredit-backward-up
+	paredit-doublequote
+	paredit-forward
+	paredit-forward-down
+	paredit-forward-slurp-sexp
+	paredit-open-round
+	paredit-semicolon
+	paredit-splice-sexp
+	paredit-splice-sexp-killing-backward
+	))
 
 (setq mc/cmds-to-run-once
       '(
-        helm-M-x
-        ))
+	helm-M-x
+	))
