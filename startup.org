@@ -263,12 +263,20 @@ t
 #+BEGIN_SRC emacs-lisp
   (require 'clojure-mode)
   (require 'acrepl)
+  (require 'acrepl-interaction)
+  (require 'acrepl-shadow)
 
   (require 'flycheck-clj-kondo)
 
   (add-to-list 'auto-mode-alist '("\\.cljs\\'" . clojurescript-mode))
   (add-to-list 'auto-mode-alist '("\\.clj\\'" . clojure-mode))
   (add-hook 'clojure-mode 'enable-paredit-mode)
+  (add-hook 'clojurescript-mode 'acrepl-interaction-enable)
+  (defun thing ()
+    (when (acrepl-shadow-conns-for-project)
+              (acrepl-interaction-mode)))
+  (add-hook 'clojurescript-mode-hook 'thing)
+;;  (add-hook 'clojurescript-mode-hook 'flycheck-mode)
 
   (define-clojure-indent
     (alet 'defun)
@@ -278,7 +286,7 @@ t
 
 #+RESULTS:
 : defun
-
+**** 
 **** Cider
 #+BEGIN_SRC emacs-lisp
     (add-hook 'cider-repl-mode-hook 'enable-paredit-mode)
@@ -758,6 +766,14 @@ t
 #+BEGIN_SRC emacs-lisp
   (add-hook 'lisp-mode-hook 'enable-paredit-mode)
   (add-hook 'emacs-lisp-mode-hook 'enable-paredit-mode)
+
+  (defun eval-buffer-with-feedback ()
+    (interactive)
+    (eval-buffer)
+    (message "Evaluated buffer."))
+
+  (define-key emacs-lisp-mode-map (kbd "C-c C-b") 'eval-buffer-with-feedback)
+
 #+END_SRC
 
 #+RESULTS:
@@ -948,6 +964,19 @@ t
         (let ((next (end-of-sexp prev)))
           (when next
             (miracle-eval-region prev next))))))
+
+
+  (require 'acrepl)
+  (defun acrepl-eval-wrapping-sexp ()
+  (interactive)
+    (let* ((pt (point))
+           (prev (start-of-sexp pt)))
+      (when prev
+        (let ((next (end-of-sexp prev)))
+          (when next
+            (acrepl-send-region prev next))))))
+
+  (global-set-key (kbd "C-c C-t") 'acrepl-eval-wrapping-sexp)
 
   (define-key miracle-interaction-mode-map (kbd "C-c C-g") 'miracle-eval-wrapping-sexp)
   (define-key miracle-interaction-mode-map (kbd "C-c C-ö") 'miracle-saves-in-defun)
