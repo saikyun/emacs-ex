@@ -66,7 +66,7 @@
  '(ns-right-alternate-modifier (quote alt))
  '(package-selected-packages
    (quote
-    (flycheck-clj-kondo smartparens cider edn multiple-cursors coffee-mode solarized-theme command-log-mode jazz-theme monokai-theme prettier-js web-mode neotree magit cargo company-racer racer flymake-rust rust-mode highlight-parentheses expand-region projectile helm-ag company-anaconda anaconda-mode eglot lsp-mode helm-swoop helm-company company monroe dracula-theme omnisharp csharp-mode lua-mode multi-line inf-clojure avy flycheck tide exec-path-from-shell paredit-everywhere paredit highlight-symbol helm-projectile auto-indent-mode auto-auto-indent)))
+    (zprint-mode flycheck-clj-kondo smartparens cider edn multiple-cursors coffee-mode solarized-theme command-log-mode jazz-theme monokai-theme prettier-js web-mode neotree magit cargo company-racer racer flymake-rust rust-mode highlight-parentheses expand-region projectile helm-ag company-anaconda anaconda-mode eglot lsp-mode helm-swoop helm-company company monroe dracula-theme omnisharp csharp-mode lua-mode multi-line inf-clojure avy flycheck tide exec-path-from-shell paredit-everywhere paredit highlight-symbol helm-projectile auto-indent-mode auto-auto-indent)))
  '(pos-tip-background-color "#FFFACE")
  '(pos-tip-foreground-color "#272822")
  '(projectile-globally-ignored-file-suffixes (quote (".min.js" ".meta")))

@@ -170,17 +170,88 @@
 ;;  (setq projectile-indexing-method 'native)
 
 (require 'clojure-mode)
-(require 'acrepl)
+  (require 'acrepl)
+  (require 'acrepl-interaction)
+  (require 'acrepl-shadow)
 
-(require 'flycheck-clj-kondo)
+(global-set-key (kbd "C-<tab>") 'acrepl-auto-complete-dotdot-form)
 
-(add-to-list 'auto-mode-alist '("\\.cljs\\'" . clojurescript-mode))
-(add-to-list 'auto-mode-alist '("\\.clj\\'" . clojure-mode))
-(add-hook 'clojure-mode 'enable-paredit-mode)
+  (require 'flycheck-clj-kondo)
 
-(define-clojure-indent
-  (alet 'defun)
-  (mlet 'defun))
+  (add-to-list 'auto-mode-alist '("\\.cljs\\'" . clojurescript-mode))
+  (add-to-list 'auto-mode-alist '("\\.clj\\'" . clojure-mode))
+  (add-hook 'clojure-mode 'enable-paredit-mode)
+;;  (remove-hook 'clojurescript-mode 'acrepl-interaction-enable)
+  (defun thing ()
+    (when (acrepl-shadow-conns-for-project)
+              (acrepl-interaction-mode)))
+  (add-hook 'clojurescript-mode-hook 'thing)
+  (add-hook 'clojurec-mode-hook 'thing)
+;;  (add-hook 'clojurescript-mode-hook 'flycheck-mode)
+
+  (define-clojure-indent
+    (alet 'defun)
+    (mlet 'defun))
+
+
+;;; auto-complete-etags.el --- Auto-completion source for etags
+
+;; Copyright 2009 Yen-Chin,Lee
+;;
+;; Author: Yen-Chin,Lee
+;; Version: $Id: auto-complete-etags.el,v 0.2 2009/04/23 00:38:01 coldnew Exp $
+;; Keywords:
+;; X-URL: not distributed yet
+
+;; This program is free software; you can redistribute it and/or modify
+;; it under the terms of the GNU General Public License as published by
+;; the Free Software Foundation; either version 2, or (at your option)
+;; any later version.
+;;
+;; This program is distributed in the hope that it will be useful,
+;; but WITHOUT ANY WARRANTY; without even the implied warranty of
+;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+;; GNU General Public License for more details.
+;;
+;; You should have received a copy of the GNU General Public License
+;; along with this program; if not, write to the Free Software
+;; Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+
+;;; Commentary:
+
+;; Put this file into your load-path and the following into your ~/.emacs:
+;;   (require 'auto-complete-etags)
+
+;;; Code:
+
+(provide 'auto-complete-etags)
+(require 'auto-complete)
+(eval-when-compile
+  (require 'cl))
+
+
+;;;;##########################################################################
+;;;;  User Options, Variables
+;;;;##########################################################################
+
+(defface ac-etags-candidate-face
+  '((t (:background "gainsboro" :foreground "deep sky blue")))
+  "Face for etags candidate")
+
+(defface ac-etags-selection-face
+  '((t (:background "deep sky blue" :foreground "white")))
+  "Face for the etags selected candidate.")
+
+(defvar ac-source-etags
+  '((candidates . (lambda ()
+                    (all-completions ac-target (tags-completion-table))))
+    (candidate-face . ac-etags-candidate-face)
+    (selection-face . ac-etags-selection-face)
+    (requires . 3))
+  "Source for etags.")
+
+
+;;; auto-complete-etags.el ends here
 
 (add-hook 'cider-repl-mode-hook 'enable-paredit-mode)
   (add-hook 'clojure-mode-hook 'enable-paredit-mode)
@@ -595,6 +666,13 @@
 (add-hook 'lisp-mode-hook 'enable-paredit-mode)
 (add-hook 'emacs-lisp-mode-hook 'enable-paredit-mode)
 
+(defun eval-buffer-with-feedback ()
+  (interactive)
+  (eval-buffer)
+  (message "Evaluated buffer."))
+
+(define-key emacs-lisp-mode-map (kbd "C-c C-b") 'eval-buffer-with-feedback)
+
 (global-set-key (kbd "M-m") 'delete-indentation)
 (global-set-key (kbd "C-S-z") 'revert-buffer)
 
@@ -626,6 +704,7 @@
 (global-set-key (kbd "C-å") 'paredit-expand)
 
 (global-set-key (kbd "<tab>") 'helm-company)
+(define-key magit-mode-map (kbd "<tab>") 'magit-section-toggle)
 
 (global-set-key (kbd "M-x") #'helm-M-x)
 (global-set-key (kbd "C-x r b") #'helm-filtered-bookmarks)
@@ -729,6 +808,19 @@
       (let ((next (end-of-sexp prev)))
         (when next
           (miracle-eval-region prev next))))))
+
+
+(require 'acrepl)
+(defun acrepl-eval-wrapping-sexp ()
+(interactive)
+(let* ((pt (point))
+         (prev (start-of-sexp pt)))
+    (when prev
+      (let ((next (end-of-sexp prev)))
+        (when next
+          (acrepl-send-region prev next))))))
+
+(global-set-key (kbd "C-c C-ö") 'acrepl-eval-wrapping-sexp)
 
 (define-key miracle-interaction-mode-map (kbd "C-c C-g") 'miracle-eval-wrapping-sexp)
 (define-key miracle-interaction-mode-map (kbd "C-c C-ö") 'miracle-saves-in-defun)

@@ -1,0 +1,12 @@
+[submodule "scripts/preppy"]
+	path = scripts/preppy
+	url = https://github.com/Saikyun/preppy.git
+[submodule "scripts/monroe"]
+	path = scripts/monroe
+	url = https://github.com/Saikyun/monroe
+[submodule "scripts/miracle"]
+	path = scripts/miracle
+	url = https://github.com/Saikyun/miracle.git
+[submodule "scripts/acrepl"]
+	path = scripts/acrepl
+	url = https://github.com/Saikyun/acrepl

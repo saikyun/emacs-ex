@@ -5,6 +5,7 @@
   ("--function-context" "--no-ext-diff")
   ("--no-ext-diff"))
  (magit-dispatch nil)
+ (magit-fetch nil)
  (magit-gitignore nil)
  (magit-log
   ("-n256" "--graph" "--decorate")
@@ -16,5 +17,6 @@
  (magit-rebase nil)
  (magit-remote
   ("-f"))
+ (magit-reset nil)
  (magit-stash nil)
  (magit-tag nil))

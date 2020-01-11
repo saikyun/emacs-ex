@@ -9,15 +9,21 @@
 	org-shiftleft
 	paredit-backward
 	paredit-backward-kill-word
+	paredit-backward-slurp-sexp
 	paredit-backward-up
+	paredit-close-round
 	paredit-doublequote
 	paredit-forward
+	paredit-forward-barf-sexp
 	paredit-forward-down
 	paredit-forward-slurp-sexp
+	paredit-kill
 	paredit-open-round
 	paredit-semicolon
 	paredit-splice-sexp
 	paredit-splice-sexp-killing-backward
+	transpose-sexps
+	transpose-words
 	))
 
 (setq mc/cmds-to-run-once
