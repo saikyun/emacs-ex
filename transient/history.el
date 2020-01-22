@@ -18,5 +18,6 @@
  (magit-remote
   ("-f"))
  (magit-reset nil)
+ (magit-show-refs nil)
  (magit-stash nil)
  (magit-tag nil))

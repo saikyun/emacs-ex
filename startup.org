@@ -266,7 +266,8 @@ t
     (require 'acrepl-interaction)
     (require 'acrepl-shadow)
 
-  (global-set-key (kbd "C-<tab>") 'acrepl-auto-complete-dotdot-form)
+    (global-set-key (kbd "C-<tab>") 'helm-dabbrev)
+    (global-set-key (kbd "A-<tab>") 'acrepl-auto-complete-dotdot-form)
 
     (require 'flycheck-clj-kondo)
 
@@ -347,7 +348,7 @@ t
 #+END_SRC
 
 #+RESULTS:
-: defun
+: ac-source-etags
 **** 
 **** Cider
 #+BEGIN_SRC emacs-lisp
