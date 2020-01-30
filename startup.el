@@ -174,7 +174,8 @@
   (require 'acrepl-interaction)
   (require 'acrepl-shadow)
 
-(global-set-key (kbd "C-<tab>") 'acrepl-auto-complete-dotdot-form)
+  (global-set-key (kbd "C-<tab>") 'helm-dabbrev)
+  (global-set-key (kbd "A-<tab>") 'acrepl-auto-complete-dotdot-form)
 
   (require 'flycheck-clj-kondo)
 
