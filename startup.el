@@ -173,6 +173,33 @@
   (require 'acrepl)
   (require 'acrepl-interaction)
   (require 'acrepl-shadow)
+  ;;(require 'acrepl-repl-funcs)
+
+  ;; XXX: collapse comment blocks
+    (add-hook 'clojure-mode-hook
+              (lambda ()
+                (hs-minor-mode)
+                (setq hs-hide-comments-when-hiding-all nil)
+                (setq hs-block-start-regexp "\\s(comment")))
+
+(defun asrepl-insert-last-output ()
+  "Insert last evaluation result."
+  (interactive)
+  (let ((here (point))
+        (original-buffer (current-buffer))
+        (repl-buffer (acrepl-guess-repl-buffer))
+        (last-output ""))
+    (if (not repl-buffer)
+        (message (format "%s is missing..." "aoeu"))
+      ;; switch to asrepl buffer to prepare for appending
+      (set-buffer repl-buffer)
+      (setq last-output
+            (buffer-substring-no-properties comint-last-input-end
+                                            (first comint-last-prompt)))
+      (set-buffer original-buffer)
+      (insert "\n;;=> ")
+      (insert last-output)
+      (delete-backward-char 1))))
 
   (global-set-key (kbd "C-<tab>") 'helm-dabbrev)
   (global-set-key (kbd "A-<tab>") 'acrepl-auto-complete-dotdot-form)
@@ -181,13 +208,17 @@
 
   (add-to-list 'auto-mode-alist '("\\.cljs\\'" . clojurescript-mode))
   (add-to-list 'auto-mode-alist '("\\.clj\\'" . clojure-mode))
-  (add-hook 'clojure-mode 'enable-paredit-mode)
+(add-hook 'clojure-mode 'enable-paredit-mode)
+
+(add-hook 'clojure-mode 'global-flycheck-mode)
+
 ;;  (remove-hook 'clojurescript-mode 'acrepl-interaction-enable)
   (defun thing ()
-    (when (acrepl-shadow-conns-for-project)
+    (when (or 't (acrepl-shadow-conns-for-project))
               (acrepl-interaction-mode)))
   (add-hook 'clojurescript-mode-hook 'thing)
   (add-hook 'clojurec-mode-hook 'thing)
+  (add-hook 'clojure-mode-hook 'thing)
 ;;  (add-hook 'clojurescript-mode-hook 'flycheck-mode)
 
   (define-clojure-indent
@@ -654,6 +685,8 @@
 
 (global-magit-file-mode)
 
+(global-set-key (kbd "C-x g") 'magit)
+
 (add-hook 'rust-mode 'racer-mode)
 
 (when (fboundp 'windmove-default-keybindings)
@@ -812,19 +845,8 @@
 
 
 (require 'acrepl)
-(defun acrepl-eval-wrapping-sexp ()
-(interactive)
-(let* ((pt (point))
-         (prev (start-of-sexp pt)))
-    (when prev
-      (let ((next (end-of-sexp prev)))
-        (when next
-          (acrepl-send-region prev next))))))
-
-(global-set-key (kbd "C-c C-ö") 'acrepl-eval-wrapping-sexp)
 
 (define-key miracle-interaction-mode-map (kbd "C-c C-g") 'miracle-eval-wrapping-sexp)
-(define-key miracle-interaction-mode-map (kbd "C-c C-ö") 'miracle-saves-in-defun)
 (define-key miracle-interaction-mode-map (kbd "C-c C-f C-s") 'miracle-instrument-ns)
 (define-key miracle-interaction-mode-map (kbd "C-c C-f C-f") 'miracle-instrument-defun)
 (define-key miracle-interaction-mode-map (kbd "C-c C-f C-p") 'miracle-unstrument-defun)
@@ -880,9 +902,3 @@
 (require 'multiple-cursors)
 
 (global-set-key (kbd "C-S-c C-S-c") 'mc/edit-lines)
-
-(fset 'start-medgivande-api
-   (lambda (&optional arg) "Keyboard macro." (interactive "p") (kmacro-exec-ring-item (quote ([24 6 126 47 106 111 98 98 right 105 115 116 right 109 101 100 right down down 134217829 121 97 114 110 32 119 97 116 99 104 45 116 115 return 24 50 67108914 134217845 101 115 104 101 108 108 return 121 97 114 110 32 115 116 97 114 116 44 backspace 45 108 111 99 97 108 return] 0 "%d")) arg)))
-
-(fset 'start-medgivande-portal
-   (lambda (&optional arg) "Keyboard macro." (interactive "p") (kmacro-exec-ring-item (quote ([21 134217845 101 115 104 101 108 108 return 99 100 return 99 100 32 106 111 98 98 tab 105 115 116 tab 109 101 100 tab tab tab return 121 97 114 110 32 119 97 116 99 104 45 116 115 111 backspace return 24 51 21 134217845 101 115 104 101 108 108 return 121 97 114 110 32 115 116 97 114 116 return] 0 "%d")) arg)))

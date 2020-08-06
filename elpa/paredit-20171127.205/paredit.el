@@ -674,12 +674,15 @@ Used by `paredit-yank-pop'; for internal paredit use only.")
       (paredit-ignore-sexp-errors (indent-sexp))
       (paredit-blink-paren-match t))))
 
+(declare hl-sexp-color-update)
+
 (defun paredit-move-past-close-and (close if-moved)
   (if (or (paredit-in-string-p)
           (paredit-in-comment-p))
       (insert close)
-    (if (paredit-in-char-p) (forward-char))
+    (if (paredit-in-char-p) (do (forward-char) (hl-sexp-color-update)))
     (paredit-move-past-close-and-reindent close)
+     (hl-sexp-color-update)
     (funcall if-moved)))
 
 (defun paredit-find-comment-on-line ()

@@ -34,6 +34,7 @@
    (quote
     ("0598c6a29e13e7112cfbc2f523e31927ab7dce56ebb2016b567e1eff6dc1fd4f" "d91ef4e714f05fff2070da7ca452980999f5361209e679ee988e3c432df24347" "eb7be1648009af366d83f855191057bdc09348a2d9353db31da03b1cdec50cc5" "bd7b7c5df1174796deefce5debc2d976b264585d51852c962362be83932873d9" "aaffceb9b0f539b6ad6becb8e96a04f2140c8faa1de8039a343a4f1e009174fb" default)))
  '(fci-rule-color "#151515")
+ '(global-flycheck-mode t)
  '(global-highlight-parentheses-mode t)
  '(helm-ag-ignore-patterns (quote ("*.min.js")))
  '(highlight-changes-colors (quote ("#FD5FF0" "#AE81FF")))
