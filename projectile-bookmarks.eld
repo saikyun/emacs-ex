@@ -1,1 +1,0 @@
-("~/.emacs.d/" "/Users/test/spel/animal-capital/" "/Users/test/.emacs.d/scripts/acrepl/" "/Users/test/.emacs.d/" "~/.emacs.d/scripts/acrepl/" "~/" "~/.emacs.d/scripts/preppy/" "~/.emacs.d/scripts/miracle/" "~/.emacs.d/scripts/monroe/")

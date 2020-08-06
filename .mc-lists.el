@@ -16,9 +16,13 @@
 	paredit-forward
 	paredit-forward-barf-sexp
 	paredit-forward-down
+	paredit-forward-kill-word
 	paredit-forward-slurp-sexp
 	paredit-kill
+	paredit-open-curly
 	paredit-open-round
+	paredit-open-square
+	paredit-raise-sexp
 	paredit-semicolon
 	paredit-splice-sexp
 	paredit-splice-sexp-killing-backward
